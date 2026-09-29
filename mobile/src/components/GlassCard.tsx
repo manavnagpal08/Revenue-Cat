@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ViewProps, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import { View, ViewProps, StyleSheet, TouchableOpacity, StyleProp, ViewStyle, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Colors, Shadows, Gradients } from '../constants/theme';
@@ -50,9 +50,9 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   };
 
   const handlePress = () => {
-    if (enableHaptics) {
+    if (enableHaptics && Platform.OS !== 'web') {
       try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       } catch {}
     }
     onPress?.();

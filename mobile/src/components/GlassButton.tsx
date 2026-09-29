@@ -8,6 +8,7 @@ import {
   ViewStyle,
   TextStyle,
   View,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -35,9 +36,9 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
   ...props
 }) => {
   const handlePress = (e: any) => {
-    if (enableHaptics) {
+    if (enableHaptics && Platform.OS !== 'web') {
       try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       } catch {}
     }
     onPress?.(e);
