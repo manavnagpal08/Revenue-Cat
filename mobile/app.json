@@ -38,9 +38,13 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "soloceo-mobile-app"
+        "projectId": "b222f633-186b-4690-9d8a-1f2bab100703"
       }
-    }
+    },
+    "owner": "manav.nagpal2005"
   }
 }
