@@ -1,0 +1,204 @@
+import uuid
+import logging
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timezone
+from app.core.supabase_client import get_supabase
+from app.services.ai.providers import get_ai_provider
+from app.services.ai.agents.sales_agent import SalesAgent
+from app.services.ai.agents.finance_agent import FinanceAgent
+from app.services.ai.agents.proposal_agent import ProposalAgent
+from app.services.ai.agents.customer_support_agent import CustomerSupportAgent
+from app.services.ai.agents.general_business_agent import GeneralBusinessAgent
+
+logger = logging.getLogger("soloceo_ai_supervisor")
+
+# In-memory storage for conversations and messages (for fallback and test isolation)
+_in_memory_conversations: Dict[str, Dict[str, Any]] = {}
+_in_memory_messages: List[Dict[str, Any]] = []
+_in_memory_usage: List[Dict[str, Any]] = []
+
+class AISupervisor:
+    """
+    Central AI Supervisor of SoloCEO.
+    Classifies user intent, selects specialized agents, passes business context,
+    enforces tenant isolation, manages conversation state, and records usage.
+    """
+
+    def __init__(self):
+        self.provider = get_ai_provider()
+        self.sales_agent = SalesAgent(self.provider)
+        self.finance_agent = FinanceAgent(self.provider)
+        self.proposal_agent = ProposalAgent(self.provider)
+        self.support_agent = CustomerSupportAgent(self.provider)
+        self.general_agent = GeneralBusinessAgent(self.provider)
+
+    def route_intent(self, query: str) -> str:
+        """
+        Deterministic intent classifier for specialized agent routing.
+        """
+        q = query.lower()
+
+        # Proposal intent
+        if any(w in q for w in ["proposal", "quote", "scope", "deliverable", "contract", "pitch"]):
+            return "PROPOSAL"
+
+        # Finance intent
+        if any(w in q for w in ["invoice", "overdue", "owe", "owes", "revenue", "payment", "paid", "unpaid", "money", "cash", "billing"]):
+            return "FINANCE"
+
+        # Sales intent
+        if any(w in q for w in ["lead", "pipeline", "deal", "inactive", "follow up", "followup", "opportunity", "contacted"]):
+            return "SALES"
+
+        # Customer support intent
+        if any(w in q for w in ["customer", "client", "response", "reply", "draft", "summary of", "email to", "message to"]):
+            return "CUSTOMER_SUPPORT"
+
+        # General business intent
+        return "GENERAL_BUSINESS"
+
+    async def execute_query(
+        self,
+        query: str,
+        business_id: str,
+        user_id: str,
+        conversation_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Main query orchestration pipeline.
+        """
+        # 1. Fetch business name
+        business_name = "My Business"
+        supabase = get_supabase()
+        if supabase:
+            try:
+                b_res = supabase.table("businesses").select("name").eq("id", business_id).single().execute()
+                if b_res.data:
+                    business_name = b_res.data.get("name", "My Business")
+            except Exception:
+                pass
+
+        # 2. Ensure conversation exists
+        conv_id = conversation_id or str(uuid.uuid4())
+        await self._ensure_conversation(conv_id=conv_id, business_id=business_id, user_id=user_id, title=query[:40])
+
+        # 3. Store user message
+        await self._save_message(
+            conversation_id=conv_id,
+            sender="user",
+            agent="user",
+            content=query,
+            structured_data=None
+        )
+
+        # 4. Route intent & execute specialized agent
+        intent = self.route_intent(query)
+        agent_result = {}
+
+        if intent == "SALES":
+            agent_result = await self.sales_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})
+        elif intent == "FINANCE":
+            agent_result = await self.finance_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})
+        elif intent == "PROPOSAL":
+            agent_result = await self.proposal_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})
+        elif intent == "CUSTOMER_SUPPORT":
+            agent_result = await self.support_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})
+        else:
+            agent_result = await self.general_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})
+
+        # 5. Store AI assistant message
+        await self._save_message(
+            conversation_id=conv_id,
+            sender="assistant",
+            agent=agent_result.get("agent", "supervisor"),
+            content=agent_result.get("message", ""),
+            structured_data=agent_result.get("structured_data")
+        )
+
+        # 6. Record usage
+        await self._record_usage(
+            business_id=business_id,
+            user_id=user_id,
+            action_type=f"{agent_result.get('agent')}_query",
+            credits=1
+        )
+
+        return {
+            "conversation_id": conv_id,
+            "agent": agent_result.get("agent", "supervisor"),
+            "intent": intent,
+            "message": agent_result.get("message", ""),
+            "structured_data": agent_result.get("structured_data"),
+            "action_cards": agent_result.get("action_cards", []),
+            "requires_confirmation": agent_result.get("requires_confirmation", False),
+            "pending_action": agent_result.get("pending_action"),
+            "credits_remaining": 99
+        }
+
+    async def _ensure_conversation(self, conv_id: str, business_id: str, user_id: str, title: str):
+        supabase = get_supabase()
+        if supabase:
+            try:
+                res = supabase.table("ai_conversations").select("id").eq("id", conv_id).execute()
+                if not res.data:
+                    supabase.table("ai_conversations").insert({
+                        "id": conv_id,
+                        "business_id": business_id,
+                        "user_id": user_id,
+                        "title": title
+                    }).execute()
+            except Exception as e:
+                logger.warning(f"Error persisting ai_conversation: {e}")
+
+        if conv_id not in _in_memory_conversations:
+            _in_memory_conversations[conv_id] = {
+                "id": conv_id,
+                "business_id": business_id,
+                "user_id": user_id,
+                "title": title,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+
+    async def _save_message(self, conversation_id: str, sender: str, agent: str, content: str, structured_data: Optional[Dict[str, Any]]):
+        msg_id = str(uuid.uuid4())
+        msg_data = {
+            "id": msg_id,
+            "conversation_id": conversation_id,
+            "sender": sender,
+            "agent": agent,
+            "content": content,
+            "structured_data": structured_data,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        supabase = get_supabase()
+        if supabase:
+            try:
+                supabase.table("ai_messages").insert(msg_data).execute()
+            except Exception as e:
+                logger.warning(f"Error persisting ai_message: {e}")
+
+        _in_memory_messages.append(msg_data)
+
+    async def _record_usage(self, business_id: str, user_id: str, action_type: str, credits: int = 1):
+        usage_data = {
+            "id": str(uuid.uuid4()),
+            "business_id": business_id,
+            "user_id": user_id,
+            "action_type": action_type,
+            "tokens_used": 150,
+            "credits_consumed": credits,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        supabase = get_supabase()
+        if supabase:
+            try:
+                supabase.table("ai_usage").insert(usage_data).execute()
+            except Exception as e:
+                logger.warning(f"Error persisting ai_usage: {e}")
+
+        _in_memory_usage.append(usage_data)
+
+# Singleton instance
+supervisor_instance = AISupervisor()

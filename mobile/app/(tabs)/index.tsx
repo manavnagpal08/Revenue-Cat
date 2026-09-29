@@ -27,7 +27,8 @@ import { StatCard } from '../../src/components/StatCard';
 import { useAuthStore } from '../../src/store/authStore';
 import { dashboardService } from '../../src/services/dashboardService';
 import { leadService } from '../../src/services/leadService';
-import { BusinessKPIs, Lead } from '../../src/types';
+import { aiService } from '../../src/services/aiService';
+import { BusinessKPIs, Lead, AIBusinessBrief } from '../../src/types';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -45,17 +46,20 @@ export default function HomeScreen() {
     overdueInvoicesCount: 3,
   });
 
+  const [brief, setBrief] = useState<AIBusinessBrief | null>(null);
   const [topLead, setTopLead] = useState<Lead | null>(null);
 
   const loadDashboardData = async () => {
     if (!currentBusiness?.id) return;
     try {
-      const [metrics, leads] = await Promise.all([
+      const [metrics, leads, aiBrief] = await Promise.all([
         dashboardService.getMetrics(currentBusiness.id),
         leadService.listLeads(currentBusiness.id),
+        aiService.getBusinessBrief(currentBusiness.id),
       ]);
 
       setStats(metrics);
+      setBrief(aiBrief);
 
       // Find top opportunity (highest value in discovery/proposal)
       const openLeads = leads.filter((l) => l.status !== 'won' && l.status !== 'lost');

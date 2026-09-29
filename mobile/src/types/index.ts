@@ -145,7 +145,7 @@ export interface BusinessKPIs {
 }
 
 export interface AIAgentActionCard {
-  type: 'lead_followup' | 'invoice_reminder' | 'proposal_review' | 'kpi_insight';
+  type: string;
   title: string;
   description: string;
   primary_action_label?: string;
@@ -155,9 +155,41 @@ export interface AIAgentActionCard {
 export interface AIMessage {
   id: string;
   sender: 'user' | 'assistant' | 'system';
-  agent?: 'supervisor' | 'sales' | 'finance' | 'proposal';
+  agent?: string;
   content: string;
   structured_data?: Record<string, any>;
   action_cards?: AIAgentActionCard[];
+  requires_confirmation?: boolean;
+  pending_action?: {
+    action_type: string;
+    payload: Record<string, any>;
+  };
   created_at: string;
+}
+
+export interface AICommandResult {
+  conversation_id: string;
+  agent: string;
+  intent?: string;
+  message: string;
+  structured_data?: Record<string, any>;
+  action_cards?: AIAgentActionCard[];
+  requires_confirmation?: boolean;
+  pending_action?: {
+    action_type: string;
+    payload: Record<string, any>;
+  };
+  credits_remaining?: number;
+}
+
+export interface AIBusinessBrief {
+  top_opportunity?: any;
+  inactive_leads_count: number;
+  inactive_leads_value: number;
+  overdue_invoices_count: number;
+  overdue_amount: number;
+  revenue_collected: number;
+  pending_proposals_count: number;
+  pending_proposals_value: number;
+  generated_at_summary?: string;
 }

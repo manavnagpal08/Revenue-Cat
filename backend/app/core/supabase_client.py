@@ -34,3 +34,8 @@ def get_supabase_admin_client() -> Optional[Client]:
                 logger.error(f"Failed to initialize Supabase admin client: {e}")
                 _supabase_admin_client = None
     return _supabase_admin_client
+
+def get_supabase() -> Optional[Client]:
+    """Alias for get_supabase_client."""
+    return get_supabase_client()
+

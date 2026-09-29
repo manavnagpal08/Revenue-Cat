@@ -68,3 +68,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[
         detail="Invalid or expired session token",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+async def get_current_user_id(user: Dict[str, Any] = Depends(get_current_user)) -> str:
+    return str(user.get("id", "00000000-0000-0000-0000-000000000001"))
+

@@ -1,250 +1,392 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  ActivityIndicator,
+  Modal,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Sparkles, Send, Bot, User, ArrowUpRight, DollarSign, Users, FileText } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import {
+  Sparkles,
+  Send,
+  Trash2,
+  TrendingUp,
+  FileText,
+  Users,
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  Receipt,
+  X,
+  Bot,
+  User,
+} from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
+import { aiService } from '../../src/services/aiService';
+import { useAuthStore } from '../../src/store/authStore';
+import { AIMessage, AIAgentActionCard } from '../../src/types';
 
-interface Message {
-  id: string;
-  sender: 'user' | 'assistant';
-  agent?: 'supervisor' | 'sales' | 'finance' | 'proposal';
-  text: string;
-  actionCard?: {
-    type: string;
-    title: string;
-    details: string;
-    actionLabel: string;
-  };
-}
+export default function AICommandCenterScreen() {
+  const router = useRouter();
+  const { currentBusiness, profile } = useAuthStore();
+  const scrollViewRef = useRef<ScrollView>(null);
 
-export default function AIScreen() {
-  const [inputText, setInputText] = useState('');
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
+  const [conversationId, setConversationId] = useState<string>('conv-' + Date.now());
+
+  // Confirmation modal state for write actions
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [pendingAction, setPendingAction] = useState<any>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  const [messages, setMessages] = useState<AIMessage[]>([
     {
-      id: '1',
+      id: 'welcome-msg',
       sender: 'assistant',
       agent: 'supervisor',
-      text: 'Good morning Alex! I am your AI Supervisor. I am continuously monitoring your CRM, invoices, proposals, and pipeline. What would you like to get done?',
+      content:
+        `Good day, ${profile?.full_name?.split(' ')[0] || 'Founder'}. I am your SoloCEO AI Operating System.\n\n` +
+        `I am actively monitoring **${currentBusiness?.name || 'your workspace'}** across sales pipeline, cash collections, and project scoping.\n\n` +
+        `How can I assist your business today?`,
+      created_at: new Date().toISOString(),
     },
   ]);
 
-  const handleSend = (textToSend?: string) => {
-    const query = textToSend || inputText;
-    if (!query.trim()) return;
+  const suggestedPrompts = [
+    'Which leads need follow-up?',
+    'Who owes me money?',
+    'Create proposal for Acme Interiors',
+    'What should I focus on today?',
+  ];
 
-    const userMsg: Message = {
-      id: Date.now().toString(),
+  const handleSend = async (queryText?: string) => {
+    const textToSend = queryText || input;
+    if (!textToSend.trim() || !currentBusiness?.id || loading) return;
+
+    const userMsg: AIMessage = {
+      id: 'msg-' + Date.now(),
       sender: 'user',
-      text: query,
+      content: textToSend.trim(),
+      created_at: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    setInputText('');
+    setInput('');
     setLoading(true);
 
-    setTimeout(() => {
-      let aiResponse: Message;
-      const lower = query.toLowerCase();
+    try {
+      const res = await aiService.sendCommand(currentBusiness.id, textToSend.trim(), conversationId);
+      setConversationId(res.conversation_id);
 
-      if (lower.includes('money') || lower.includes('owe') || lower.includes('overdue')) {
-        aiResponse = {
-          id: (Date.now() + 1).toString(),
-          sender: 'assistant',
-          agent: 'finance',
-          text: 'I checked your invoices. You have 3 overdue invoices totaling ₹31,200.',
-          actionCard: {
-            type: 'finance',
-            title: 'Overdue Breakdown',
-            details: '• Acme Interiors: ₹18,000 (10d late)\n• XYZ Studio: ₹8,500 (5d late)\n• Rahul Designs: ₹4,700 (3d late)',
-            actionLabel: 'Send All Reminders',
-          },
-        };
-      } else if (lower.includes('lead') || lower.includes('call') || lower.includes('follow')) {
-        aiResponse = {
-          id: (Date.now() + 1).toString(),
-          sender: 'assistant',
-          agent: 'sales',
-          text: 'Acme Interiors is your highest-value deal at ₹85,000. They have been waiting for 6 days since the proposal was sent.',
-          actionCard: {
-            type: 'sales',
-            title: 'Recommended Follow-up',
-            details: 'Draft email to Vikram Mehta ready: "Hi Vikram, just checking in regarding the mobile app proposal..."',
-            actionLabel: 'Review & Send Draft',
-          },
-        };
-      } else if (lower.includes('proposal') || lower.includes('create')) {
-        aiResponse = {
-          id: (Date.now() + 1).toString(),
-          sender: 'assistant',
-          agent: 'proposal',
-          text: 'I can generate a customized proposal. Which customer and project would you like me to scope?',
-          actionCard: {
-            type: 'proposal',
-            title: 'New Proposal Draft',
-            details: 'Template: Design & Development Sprint (₹85,000)',
-            actionLabel: 'Configure & Generate PDF',
-          },
-        };
-      } else {
-        aiResponse = {
-          id: (Date.now() + 1).toString(),
-          sender: 'assistant',
-          agent: 'supervisor',
-          text: `I analyzed your business data regarding "${query}". Your monthly revenue is ₹184,500 (+18.4%), 3 active deals in pipeline, and cash collection rate is 85.5%.`,
-        };
+      const assistantMsg: AIMessage = {
+        id: 'msg-' + (Date.now() + 1),
+        sender: 'assistant',
+        agent: res.agent,
+        content: res.message,
+        structured_data: res.structured_data,
+        action_cards: res.action_cards,
+        requires_confirmation: res.requires_confirmation,
+        pending_action: res.pending_action,
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+
+      // If action requires confirmation, pop the modal
+      if (res.requires_confirmation && res.pending_action) {
+        setPendingAction(res.pending_action);
+        setConfirmModalVisible(true);
       }
-
-      setMessages((prev) => [...prev, aiResponse]);
+    } catch (err: any) {
+      const errorMsg: AIMessage = {
+        id: 'err-' + Date.now(),
+        sender: 'assistant',
+        agent: 'supervisor',
+        content: `Error processing query: ${err.message || 'Unable to connect to AI engine.'}`,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
       setLoading(false);
-    }, 900);
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 150);
+    }
+  };
+
+  const handleActionCardPress = (card: AIAgentActionCard) => {
+    const payload = card.action_payload || {};
+    const action = payload.action;
+
+    if (action === 'VIEW_LEAD' && payload.lead_id) {
+      router.push(`/leads/${payload.lead_id}` as any);
+    } else if (action === 'VIEW_INVOICE' && payload.invoice_id) {
+      router.push(`/invoices/${payload.invoice_id}` as any);
+    } else if (action === 'VIEW_PROPOSAL' && payload.proposal_id) {
+      router.push(`/proposals/${payload.proposal_id}` as any);
+    } else if (action === 'VIEW_CUSTOMER' && payload.customer_id) {
+      router.push(`/customers/${payload.customer_id}` as any);
+    } else if (action === 'VIEW_SALES') {
+      router.push('/(tabs)/sales');
+    } else if (action === 'VIEW_INVOICES') {
+      router.push('/(tabs)/finance');
+    } else if (action === 'CREATE_PROPOSAL') {
+      setPendingAction({
+        action_type: 'CREATE_PROPOSAL',
+        payload: {
+          title: card.title.replace('Create Proposal: ', ''),
+          total_value: 75000,
+        },
+      });
+      setConfirmModalVisible(true);
+    }
+  };
+
+  const handleExecuteConfirmedAction = async () => {
+    if (!pendingAction || !currentBusiness?.id) return;
+    setConfirmLoading(true);
+    try {
+      const result = await aiService.confirmAction(
+        currentBusiness.id,
+        pendingAction.action_type,
+        pendingAction.payload
+      );
+
+      setConfirmModalVisible(false);
+      Alert.alert('Action Executed', 'Action successfully confirmed and written to your database.');
+
+      const successMsg: AIMessage = {
+        id: 'success-' + Date.now(),
+        sender: 'assistant',
+        agent: 'supervisor',
+        content: `Action **${pendingAction.action_type}** executed successfully! Record updated in database.`,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, successMsg]);
+      setPendingAction(null);
+    } catch (err: any) {
+      Alert.alert('Action Error', err.message || 'Failed to execute action');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const clearChat = () => {
+    setMessages([
+      {
+        id: 'welcome-msg',
+        sender: 'assistant',
+        agent: 'supervisor',
+        content: `Chat cleared. Ready for your next query on **${currentBusiness?.name || 'your workspace'}**.`,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    setConversationId('conv-' + Date.now());
+  };
+
+  const getAgentBadge = (agent?: string) => {
+    switch (agent) {
+      case 'sales':
+        return { name: 'SALES AGENT', color: Colors.info, bg: '#E0F2FE' };
+      case 'finance':
+        return { name: 'FINANCE AGENT', color: Colors.warning, bg: '#FEF3C7' };
+      case 'proposal':
+        return { name: 'PROPOSAL AGENT', color: Colors.primary, bg: Colors.primarySubtle };
+      case 'customer_support':
+        return { name: 'CUSTOMER INTELLIGENCE', color: Colors.success, bg: Colors.successBg };
+      case 'general_business':
+        return { name: 'CHIEF OF STAFF', color: Colors.primaryDark, bg: '#F1F5F9' };
+      default:
+        return { name: 'AI SUPERVISOR', color: Colors.primary, bg: Colors.primarySubtle };
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Top Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={styles.supervisorAvatar}>
-            <Sparkles size={20} color="#FFFFFF" />
+          <View style={styles.supervisorIconBadge}>
+            <Sparkles size={18} color="#FFFFFF" />
           </View>
           <View>
-            <Text style={styles.headerTitle}>SoloCEO AI</Text>
-            <Text style={styles.headerStatus}>Supervisor • Sales • Finance • Proposals</Text>
+            <Text style={styles.headerTitle}>AI Command Center</Text>
+            <Text style={styles.headerSub}>{currentBusiness?.name || 'Workspace'}</Text>
           </View>
         </View>
+
+        <TouchableOpacity style={styles.clearBtn} onPress={clearChat}>
+          <Trash2 size={16} color={Colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        style={{ flex: 1 }}
       >
         <ScrollView
+          ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.chatContainer}
+          contentContainerStyle={styles.scrollContent}
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
-          {/* Quick suggestions if few messages */}
-          {messages.length <= 2 ? (
-            <View style={styles.suggestionsContainer}>
-              <Text style={styles.suggestionsTitle}>QUICK COMMANDS</Text>
-              <View style={styles.pillContainer}>
-                <TouchableOpacity
-                  style={styles.pill}
-                  onPress={() => handleSend('Who owes me money?')}
-                >
-                  <DollarSign size={14} color={Colors.warning} />
-                  <Text style={styles.pillText}>Who owes me money?</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.pill}
-                  onPress={() => handleSend('Which leads should I follow up with?')}
-                >
-                  <Users size={14} color={Colors.info} />
-                  <Text style={styles.pillText}>Leads to follow up</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.pill}
-                  onPress={() => handleSend('Create a proposal for Acme')}
-                >
-                  <FileText size={14} color={Colors.primary} />
-                  <Text style={styles.pillText}>Create proposal</Text>
-                </TouchableOpacity>
+          {/* Suggested Quick Prompts */}
+          {messages.length <= 2 && (
+            <View style={styles.promptsContainer}>
+              <Text style={styles.promptsHeader}>QUICK COMMANDS</Text>
+              <View style={styles.promptsGrid}>
+                {suggestedPrompts.map((p, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.promptChip}
+                    onPress={() => handleSend(p)}
+                  >
+                    <Text style={styles.promptChipText}>{p}</Text>
+                    <ArrowRight size={12} color={Colors.primary} />
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
-          ) : null}
+          )}
 
-          {messages.map((msg) => {
-            const isAssistant = msg.sender === 'assistant';
+          {/* Conversation Messages */}
+          {messages.map((m) => {
+            const isUser = m.sender === 'user';
+            const badge = getAgentBadge(m.agent);
+
             return (
               <View
-                key={msg.id}
+                key={m.id}
                 style={[
                   styles.messageWrapper,
-                  isAssistant ? styles.assistantWrapper : styles.userWrapper,
+                  isUser ? styles.messageWrapperUser : styles.messageWrapperAi,
                 ]}
               >
-                {isAssistant ? (
-                  <View style={styles.agentTag}>
-                    <Text style={styles.agentTagText}>
-                      {msg.agent?.toUpperCase() || 'SUPERVISOR'}
+                {!isUser && (
+                  <View style={[styles.agentBadge, { backgroundColor: badge.bg }]}>
+                    <Text style={[styles.agentBadgeText, { color: badge.color }]}>
+                      {badge.name}
                     </Text>
                   </View>
-                ) : null}
+                )}
 
-                <View
-                  style={[
-                    styles.messageBubble,
-                    isAssistant ? styles.assistantBubble : styles.userBubble,
-                  ]}
+                <GlassCard
+                  variant={isUser ? 'subtle' : 'elevated'}
+                  style={[styles.messageCard, isUser ? styles.userCard : styles.aiCard]}
                 >
-                  <Text
-                    style={[
-                      styles.messageText,
-                      isAssistant ? styles.assistantText : styles.userText,
-                    ]}
-                  >
-                    {msg.text}
+                  <Text style={[styles.messageText, isUser && styles.userMessageText]}>
+                    {m.content}
                   </Text>
-                </View>
 
-                {msg.actionCard ? (
-                  <GlassCard variant="elevated" style={styles.actionCard}>
-                    <Text style={styles.actionCardTitle}>{msg.actionCard.title}</Text>
-                    <Text style={styles.actionCardDetails}>{msg.actionCard.details}</Text>
-                    <GlassButton
-                      title={msg.actionCard.actionLabel}
-                      variant="primary"
-                      size="sm"
-                      icon={<ArrowUpRight size={14} color="#FFFFFF" />}
-                      style={{ marginTop: 10 }}
-                    />
-                  </GlassCard>
-                ) : null}
+                  {/* Render Action Cards */}
+                  {m.action_cards && m.action_cards.length > 0 && (
+                    <View style={styles.actionCardsContainer}>
+                      {m.action_cards.map((card, cIdx) => (
+                        <TouchableOpacity
+                          key={cIdx}
+                          style={styles.actionCard}
+                          activeOpacity={0.8}
+                          onPress={() => handleActionCardPress(card)}
+                        >
+                          <View style={styles.actionCardContent}>
+                            <Text style={styles.actionCardTitle}>{card.title}</Text>
+                            <Text style={styles.actionCardDesc}>{card.description}</Text>
+                          </View>
+                          <View style={styles.actionCardBtn}>
+                            <Text style={styles.actionCardBtnText}>
+                              {card.primary_action_label || 'Execute'}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </GlassCard>
               </View>
             );
           })}
 
-          {loading ? (
-            <View style={styles.loadingBubble}>
+          {loading && (
+            <View style={styles.aiLoadingBox}>
               <ActivityIndicator size="small" color={Colors.primary} />
-              <Text style={styles.loadingText}>SoloCEO is reasoning across your data...</Text>
+              <Text style={styles.aiLoadingText}>AI Operating System analyzing data...</Text>
             </View>
-          ) : null}
+          )}
         </ScrollView>
 
         {/* Input Bar */}
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.textInput}
-            placeholder="Ask your business anything..."
+            style={styles.input}
+            placeholder="Ask anything about leads, invoices, proposals..."
             placeholderTextColor={Colors.textMuted}
-            value={inputText}
-            onChangeText={setInputText}
+            value={input}
+            onChangeText={setInput}
             onSubmitEditing={() => handleSend()}
+            returnKeyType="send"
           />
           <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+            style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
             onPress={() => handleSend()}
-            disabled={!inputText.trim()}
+            disabled={!input.trim() || loading}
           >
             <Send size={18} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Confirmation Modal for Write Actions */}
+      <Modal visible={confirmModalVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalTop}>
+              <View style={styles.modalTitleRow}>
+                <AlertCircle size={20} color={Colors.primary} />
+                <Text style={styles.modalTitle}>Confirm AI Action</Text>
+              </View>
+              <TouchableOpacity onPress={() => setConfirmModalVisible(false)}>
+                <X size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalDesc}>
+              The AI Agent is requesting confirmation to execute a write action on your business workspace:
+            </Text>
+
+            <GlassCard style={styles.payloadBox}>
+              <Text style={styles.payloadType}>{pendingAction?.action_type}</Text>
+              <Text style={styles.payloadData}>
+                {JSON.stringify(pendingAction?.payload, null, 2)}
+              </Text>
+            </GlassCard>
+
+            <View style={styles.modalActions}>
+              <GlassButton
+                title="Cancel"
+                variant="glass"
+                onPress={() => setConfirmModalVisible(false)}
+                style={{ flex: 1 }}
+              />
+              <GlassButton
+                title="Confirm & Execute"
+                variant="primary"
+                onPress={handleExecuteConfirmedAction}
+                loading={confirmLoading}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -259,18 +401,188 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    backgroundColor: Colors.glass,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
-  supervisorAvatar: {
+  supervisorIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.glow,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  headerSub: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  clearBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.glass,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 24,
+  },
+  promptsContainer: {
+    marginBottom: 16,
+  },
+  promptsHeader: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  promptsGrid: {
+    gap: 6,
+  },
+  promptChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    ...Shadows.card,
+  },
+  promptChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  messageWrapper: {
+    marginBottom: 16,
+  },
+  messageWrapperUser: {
+    alignItems: 'flex-end',
+  },
+  messageWrapperAi: {
+    alignItems: 'flex-start',
+  },
+  agentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 4,
+    alignSelf: 'flex-start',
+  },
+  agentBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  messageCard: {
+    maxWidth: '92%',
+    padding: 14,
+  },
+  userCard: {
+    backgroundColor: Colors.primary,
+    borderBottomRightRadius: 4,
+  },
+  aiCard: {
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 4,
+  },
+  messageText: {
+    fontSize: 14,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+  userMessageText: {
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  actionCardsContainer: {
+    marginTop: 12,
+    gap: 8,
+  },
+  actionCard: {
+    backgroundColor: Colors.glass,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 12,
+  },
+  actionCardContent: {
+    marginBottom: 8,
+  },
+  actionCardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  actionCardDesc: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  actionCardBtn: {
+    backgroundColor: Colors.primarySubtle,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  actionCardBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  aiLoadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+  },
+  aiLoadingText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    marginBottom: Platform.OS === 'ios' ? 0 : 70,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: Colors.glass,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -279,157 +591,64 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...Shadows.glow,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
+  sendButtonDisabled: {
+    backgroundColor: Colors.border,
   },
-  headerStatus: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
-  chatContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 100,
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    width: '100%',
+    maxWidth: 420,
+    ...Shadows.glass,
   },
-  suggestionsContainer: {
-    marginBottom: 20,
+  modalTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  suggestionsTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  pillContainer: {
-    gap: 8,
-  },
-  pill: {
+  modalTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.card,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
-    ...Shadows.card,
   },
-  pillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  messageWrapper: {
-    marginBottom: 16,
-    maxWidth: '85%',
-  },
-  assistantWrapper: {
-    alignSelf: 'flex-start',
-  },
-  userWrapper: {
-    alignSelf: 'flex-end',
-  },
-  agentTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.primarySubtle,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginBottom: 4,
-  },
-  agentTagText: {
-    fontSize: 10,
+  modalTitle: {
+    fontSize: 16,
     fontWeight: '800',
-    color: Colors.primary,
-  },
-  messageBubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 18,
-  },
-  assistantBubble: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
-    ...Shadows.card,
-  },
-  userBubble: {
-    backgroundColor: Colors.primary,
-  },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  assistantText: {
     color: Colors.text,
   },
-  userText: {
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
-  actionCard: {
-    marginTop: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.primary,
-  },
-  actionCardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  actionCardDetails: {
+  modalDesc: {
     fontSize: 13,
     color: Colors.textSecondary,
     lineHeight: 18,
+    marginBottom: 12,
   },
-  loadingBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  payloadBox: {
     padding: 12,
+    marginBottom: 16,
+    backgroundColor: '#F8FAFC',
   },
-  loadingText: {
+  payloadType: {
     fontSize: 12,
+    fontWeight: '800',
+    color: Colors.primary,
+    marginBottom: 4,
+  },
+  payloadData: {
+    fontSize: 11,
     color: Colors.textMuted,
-    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
-  inputContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 88 : 80,
-    left: 16,
-    right: 16,
+  modalActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.glass,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    ...Shadows.glass,
-  },
-  textInput: {
-    flex: 1,
-    height: 44,
-    fontSize: 14,
-    color: Colors.text,
-    paddingHorizontal: 8,
-  },
-  sendButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    opacity: 0.4,
+    gap: 10,
   },
 });
