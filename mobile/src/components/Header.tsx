@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors, Shadows } from '../constants/theme';
 import { Sparkles, Bell, ChevronDown } from 'lucide-react-native';
 import { WorkspaceSwitcherModal } from './WorkspaceSwitcherModal';
@@ -23,22 +24,30 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [switcherVisible, setSwitcherVisible] = useState(false);
 
+  const handleSwitcherOpen = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
+    setSwitcherVisible(true);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.leftContainer}>
         <View style={styles.tagRow}>
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={0.75}
             style={styles.businessSwitcherTrigger}
-            onPress={() => setSwitcherVisible(true)}
+            onPress={handleSwitcherOpen}
           >
-            <Text style={styles.businessTag}>{businessName}</Text>
-            <ChevronDown size={14} color={Colors.textSecondary} />
+            <View style={styles.businessActiveDot} />
+            <Text style={styles.businessTag} numberOfLines={1}>{businessName}</Text>
+            <ChevronDown size={13} color={Colors.textSecondary} />
           </TouchableOpacity>
 
           {showAiBadge ? (
             <View style={styles.aiBadge}>
-              <Sparkles size={12} color={Colors.primary} />
+              <Sparkles size={11} color={Colors.primary} />
               <Text style={styles.aiBadgeText}>AI Active</Text>
             </View>
           ) : null}
@@ -49,20 +58,27 @@ export const Header: React.FC<HeaderProps> = ({
 
       <View style={styles.rightContainer}>
         <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={onNotificationPress}
+          activeOpacity={0.75}
+          onPress={() => {
+            try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+            onNotificationPress?.();
+          }}
           style={styles.iconButton}
         >
-          <Bell size={20} color={Colors.textSecondary} />
+          <Bell size={19} color={Colors.textSecondary} />
+          <View style={styles.unreadDot} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={onProfilePress}
+          activeOpacity={0.8}
+          onPress={() => {
+            try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+            onProfilePress?.();
+          }}
           style={styles.avatarButton}
         >
           <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' }}
+            source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120' }}
             style={styles.avatarImage}
           />
         </TouchableOpacity>
@@ -82,87 +98,113 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 16,
   },
   leftContainer: {
     flex: 1,
+    marginRight: 12,
   },
   tagRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   businessSwitcherTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.card,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(226, 232, 240, 0.9)',
+    ...Shadows.sm,
+  },
+  businessActiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.primary,
   },
   businessTag: {
     fontSize: 12,
     fontWeight: '700',
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: Colors.text,
+    letterSpacing: 0.2,
+    maxWidth: 130,
   },
   aiBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.primarySubtle,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
     gap: 4,
   },
   aiBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: Colors.primary,
+    fontWeight: '800',
+    color: Colors.primaryDark,
+    letterSpacing: 0.2,
   },
   greetingText: {
-    fontSize: 22,
+    fontSize: 23,
     fontWeight: '800',
     color: Colors.text,
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
   subtitleText: {
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 2,
+    fontWeight: '500',
   },
   rightContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.glass,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: Colors.borderGlass,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
     ...Shadows.card,
   },
+  unreadDot: {
+    position: 'absolute',
+    top: 9,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
   avatarButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 2,
     borderColor: Colors.primaryLight,
     overflow: 'hidden',
+    ...Shadows.glowSubtle,
   },
   avatarImage: {
     width: '100%',
     height: '100%',
   },
 });
+

@@ -1,8 +1,10 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Home, TrendingUp, DollarSign, Sparkles, MoreHorizontal } from 'lucide-react-native';
-import { Colors, Shadows } from '../../src/constants/theme';
+import { Colors, Shadows, Gradients } from '../../src/constants/theme';
 
 export default function TabLayout() {
   return (
@@ -17,17 +19,18 @@ export default function TabLayout() {
           left: 16,
           right: 16,
           height: 68,
-          borderRadius: 28,
-          backgroundColor: Colors.glass,
-          borderWidth: 1,
-          borderColor: Colors.borderGlass,
-          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+          borderRadius: 30,
+          backgroundColor: Platform.OS === 'ios' ? 'rgba(255, 255, 255, 0.88)' : '#FFFFFF',
+          borderWidth: 1.5,
+          borderColor: 'rgba(255, 255, 255, 0.95)',
+          paddingBottom: Platform.OS === 'ios' ? 18 : 10,
           paddingTop: 10,
           ...Shadows.glass,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '600',
+          fontWeight: '700',
+          marginTop: -2,
         },
       }}
     >
@@ -35,34 +38,47 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? styles.activeTabPill : null}>
+              <Home size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="sales"
         options={{
           title: 'Sales',
-          tabBarIcon: ({ color, size }) => <TrendingUp size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? styles.activeTabPill : null}>
+              <TrendingUp size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="ai"
         options={{
           title: 'SoloCEO',
-          tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.aiTabIconContainer,
-                focused && styles.aiTabIconContainerFocused,
-              ]}
-            >
-              <Sparkles size={22} color={focused ? '#FFFFFF' : Colors.primary} />
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.aiTabWrapper}>
+              <LinearGradient
+                colors={Gradients.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[
+                  styles.aiTabIconContainer,
+                  focused && styles.aiTabIconContainerFocused,
+                ]}
+              >
+                <Sparkles size={22} color="#FFFFFF" strokeWidth={2.4} />
+              </LinearGradient>
             </View>
           ),
           tabBarLabelStyle: {
             fontSize: 11,
-            fontWeight: '700',
-            color: Colors.primary,
+            fontWeight: '800',
+            color: Colors.primaryDark,
           },
         }}
       />
@@ -70,14 +86,22 @@ export default function TabLayout() {
         name="finance"
         options={{
           title: 'Finance',
-          tabBarIcon: ({ color, size }) => <DollarSign size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? styles.activeTabPill : null}>
+              <DollarSign size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
           title: 'More',
-          tabBarIcon: ({ color, size }) => <MoreHorizontal size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={focused ? styles.activeTabPill : null}>
+              <MoreHorizontal size={22} color={color} strokeWidth={focused ? 2.4 : 1.8} />
+            </View>
+          ),
         }}
       />
     </Tabs>
@@ -85,19 +109,25 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  activeTabPill: {
+    transform: [{ scale: 1.05 }],
+  },
+  aiTabWrapper: {
+    marginTop: -20,
+  },
   aiTabIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.primarySubtle,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -14,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#FFFFFF',
     ...Shadows.glow,
   },
   aiTabIconContainerFocused: {
-    backgroundColor: Colors.primary,
+    transform: [{ scale: 1.08 }],
+    shadowOpacity: 0.45,
   },
 });
+

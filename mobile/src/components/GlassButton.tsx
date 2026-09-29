@@ -7,15 +7,19 @@ import {
   TouchableOpacityProps,
   ViewStyle,
   TextStyle,
+  View,
 } from 'react-native';
-import { Colors, Shadows } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { Colors, Shadows, Gradients } from '../constants/theme';
 
 interface GlassButtonProps extends TouchableOpacityProps {
   title: string;
-  variant?: 'primary' | 'secondary' | 'glass' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'glass' | 'danger' | 'ghost' | 'emerald';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   icon?: React.ReactNode;
+  enableHaptics?: boolean;
 }
 
 export const GlassButton: React.FC<GlassButtonProps> = ({
@@ -26,11 +30,23 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
   icon,
   style,
   disabled,
+  enableHaptics = true,
+  onPress,
   ...props
 }) => {
+  const handlePress = (e: any) => {
+    if (enableHaptics) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch {}
+    }
+    onPress?.(e);
+  };
+
   const getContainerStyle = (): ViewStyle => {
     switch (variant) {
       case 'primary':
+      case 'emerald':
         return {
           backgroundColor: Colors.primary,
           borderColor: Colors.primaryDark,
@@ -52,6 +68,7 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
         return {
           backgroundColor: Colors.danger,
           borderColor: Colors.danger,
+          ...Shadows.card,
         };
       case 'ghost':
         return {
@@ -64,13 +81,14 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
   const getTextStyle = (): TextStyle => {
     switch (variant) {
       case 'primary':
+      case 'emerald':
       case 'danger':
         return { color: Colors.textInverted, fontWeight: '700' };
       case 'secondary':
       case 'glass':
         return { color: Colors.text, fontWeight: '600' };
       case 'ghost':
-        return { color: Colors.primary, fontWeight: '600' };
+        return { color: Colors.primary, fontWeight: '700' };
     }
   };
 
@@ -78,28 +96,30 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
     switch (size) {
       case 'sm':
         return {
-          container: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12 },
+          container: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 14 },
           text: { fontSize: 13 },
         };
       case 'lg':
         return {
-          container: { paddingVertical: 16, paddingHorizontal: 24, borderRadius: 18 },
+          container: { paddingVertical: 16, paddingHorizontal: 26, borderRadius: 20 },
           text: { fontSize: 16 },
         };
       default:
         return {
-          container: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 14 },
+          container: { paddingVertical: 13, paddingHorizontal: 22, borderRadius: 16 },
           text: { fontSize: 14 },
         };
     }
   };
 
   const { container: sizeContainer, text: sizeText } = getSizeStyle();
+  const isGradient = variant === 'primary' || variant === 'emerald';
 
   return (
     <TouchableOpacity
-      activeOpacity={0.8}
+      activeOpacity={0.84}
       disabled={disabled || loading}
+      onPress={handlePress}
       style={[
         styles.baseButton,
         getContainerStyle(),
@@ -109,18 +129,27 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
       ]}
       {...props}
     >
+      {isGradient ? (
+        <LinearGradient
+          colors={Gradients.primary}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0.8 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+      ) : null}
+
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' || variant === 'danger' ? '#FFFFFF' : Colors.primary}
+          color={isGradient || variant === 'danger' ? '#FFFFFF' : Colors.primary}
         />
       ) : (
-        <>
-          {icon ? <>{icon}</> : null}
-          <Text style={[styles.baseText, getTextStyle(), sizeText, icon ? { marginLeft: 8 } : null]}>
+        <View style={styles.contentRow}>
+          {icon ? <View style={styles.iconWrap}>{icon}</View> : null}
+          <Text style={[styles.baseText, getTextStyle(), sizeText]}>
             {title}
           </Text>
-        </>
+        </View>
       )}
     </TouchableOpacity>
   );
@@ -128,15 +157,24 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
 
 const styles = StyleSheet.create({
   baseButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrap: {
+    marginRight: 8,
   },
   baseText: {
     letterSpacing: -0.2,
   },
   disabledButton: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
 });
+

@@ -9,7 +9,8 @@ interface StatCardProps {
   subtitle?: string;
   changePercent?: number;
   icon?: React.ReactNode;
-  variant?: 'revenue' | 'warning' | 'neutral' | 'info';
+  variant?: 'revenue' | 'warning' | 'neutral' | 'info' | 'purple';
+  onPress?: () => void;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -19,29 +20,53 @@ export const StatCard: React.FC<StatCardProps> = ({
   changePercent,
   icon,
   variant = 'neutral',
+  onPress,
 }) => {
-  const getAccentColor = () => {
+  const getAccentConfig = () => {
     switch (variant) {
       case 'revenue':
-        return Colors.success;
+        return { color: Colors.primary, bg: Colors.primarySubtle, border: 'rgba(16, 185, 129, 0.2)' };
       case 'warning':
-        return Colors.warning;
+        return { color: Colors.warning, bg: Colors.warningBg, border: 'rgba(245, 158, 11, 0.2)' };
       case 'info':
-        return Colors.info;
+        return { color: Colors.info, bg: Colors.infoBg, border: 'rgba(59, 130, 246, 0.2)' };
+      case 'purple':
+        return { color: Colors.purple, bg: Colors.purpleBg, border: 'rgba(139, 92, 246, 0.2)' };
       default:
-        return Colors.primary;
+        return { color: Colors.textSecondary, bg: Colors.backgroundAlt, border: Colors.borderLight };
     }
   };
 
+  const accent = getAccentConfig();
+
   return (
-    <GlassCard style={styles.container}>
+    <GlassCard
+      style={styles.container}
+      variant="elevated"
+      onPress={onPress}
+    >
       <View style={styles.topRow}>
         <Text style={styles.title}>{title}</Text>
-        {icon ? <View style={[styles.iconContainer, { backgroundColor: getAccentColor() + '15' }]}>{icon}</View> : null}
+        {icon ? (
+          <View style={[styles.iconContainer, { backgroundColor: accent.bg, borderColor: accent.border }]}>
+            {icon}
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.valueRow}>
-        <Text style={styles.valueText}>{value}</Text>
+        <Text style={styles.valueText} numberOfLines={1} adjustsFontSizeToFit>
+          {value}
+        </Text>
+      </View>
+
+      <View style={styles.bottomRow}>
+        {subtitle ? (
+          <Text style={styles.subtitleText} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
+
         {typeof changePercent === 'number' ? (
           <View
             style={[
@@ -52,7 +77,7 @@ export const StatCard: React.FC<StatCardProps> = ({
             <Text
               style={[
                 styles.badgeText,
-                { color: changePercent >= 0 ? Colors.success : Colors.danger },
+                { color: changePercent >= 0 ? Colors.primaryDark : Colors.danger },
               ]}
             >
               {changePercent >= 0 ? `+${changePercent}%` : `${changePercent}%`}
@@ -60,8 +85,6 @@ export const StatCard: React.FC<StatCardProps> = ({
           </View>
         ) : null}
       </View>
-
-      {subtitle ? <Text style={styles.subtitleText}>{subtitle}</Text> : null}
     </GlassCard>
   );
 };
@@ -69,8 +92,10 @@ export const StatCard: React.FC<StatCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    minWidth: 150,
+    minWidth: 145,
     margin: 4,
+    padding: 16,
+    borderRadius: 20,
   },
   topRow: {
     flexDirection: 'row',
@@ -79,39 +104,49 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: Colors.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   iconContainer: {
-    padding: 6,
-    borderRadius: 10,
+    padding: 7,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   valueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
+    marginBottom: 4,
   },
   valueText: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: Colors.text,
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+    gap: 4,
   },
   badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
   },
   badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
   },
   subtitleText: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textMuted,
-    marginTop: 4,
+    fontWeight: '500',
+    flex: 1,
   },
 });
+

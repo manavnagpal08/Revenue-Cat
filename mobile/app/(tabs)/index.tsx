@@ -102,13 +102,16 @@ export default function HomeScreen() {
 
         {/* AI Business Brief — Hero Card */}
         <View style={styles.sectionContainer}>
-          <GlassCard variant="elevated" style={styles.briefCard}>
+          <GlassCard variant="glow" style={styles.briefCard}>
             <View style={styles.briefHeader}>
               <View style={styles.briefBadge}>
-                <Sparkles size={14} color={Colors.primary} />
+                <Sparkles size={13} color={Colors.primary} />
                 <Text style={styles.briefBadgeText}>AI BUSINESS BRIEF</Text>
               </View>
-              <Text style={styles.briefTimestamp}>Real-time Sync</Text>
+              <View style={styles.liveSyncBadge}>
+                <View style={styles.liveSyncDot} />
+                <Text style={styles.briefTimestamp}>Live Sync</Text>
+              </View>
             </View>
 
             <Text style={styles.briefTitle}>
@@ -116,7 +119,7 @@ export default function HomeScreen() {
             </Text>
 
             <Text style={styles.briefDescription}>
-              Stage: {topLead?.status.toUpperCase().replace('_', ' ') || 'PROPOSAL SENT'}. Recommended action: Send a gentle follow-up note to keep momentum.
+              Stage: <Text style={{ fontWeight: '700', color: Colors.text }}>{topLead?.status.toUpperCase().replace('_', ' ') || 'PROPOSAL SENT'}</Text>. Recommended action: Send a gentle follow-up note to keep momentum.
             </Text>
 
             <View style={styles.briefActions}>
@@ -124,16 +127,16 @@ export default function HomeScreen() {
                 title="Follow Up with AI"
                 variant="primary"
                 size="sm"
-                icon={<Send size={14} color="#FFFFFF" />}
+                icon={<Send size={13} color="#FFFFFF" />}
                 onPress={() => router.push('/(tabs)/ai')}
-                style={{ flex: 1 }}
+                style={{ flex: 1.2 }}
               />
               <GlassButton
                 title="View Pipeline"
                 variant="secondary"
                 size="sm"
                 onPress={() => router.push('/(tabs)/sales')}
-                style={{ flex: 1 }}
+                style={{ flex: 0.9 }}
               />
             </View>
           </GlassCard>
@@ -141,7 +144,12 @@ export default function HomeScreen() {
 
         {/* 4 Core Financial & Pipeline KPIs */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Business KPIs</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Business KPIs</Text>
+            <TouchableOpacity onPress={() => router.push('/analytics' as any)}>
+              <Text style={styles.seeAllText}>Deep Analytics →</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.kpiGrid}>
             <View style={styles.kpiRow}>
               <StatCard
@@ -150,7 +158,8 @@ export default function HomeScreen() {
                 subtitle="Collected this month"
                 changePercent={stats.revenueGrowthPercent}
                 variant="revenue"
-                icon={<TrendingUp size={16} color={Colors.success} />}
+                icon={<TrendingUp size={16} color={Colors.primary} />}
+                onPress={() => router.push('/analytics/revenue' as any)}
               />
               <StatCard
                 title="Overdue"
@@ -158,6 +167,7 @@ export default function HomeScreen() {
                 subtitle={`${stats.overdueInvoicesCount || 0} overdue invoices`}
                 variant="warning"
                 icon={<AlertCircle size={16} color={Colors.warning} />}
+                onPress={() => router.push('/(tabs)/finance')}
               />
             </View>
 
@@ -168,13 +178,15 @@ export default function HomeScreen() {
                 subtitle="Open in pipeline"
                 variant="info"
                 icon={<Users size={16} color={Colors.info} />}
+                onPress={() => router.push('/(tabs)/sales')}
               />
               <StatCard
-                title="Proposals Pending"
+                title="Proposals"
                 value={`${stats.pendingProposalsCount}`}
-                subtitle="Quotes in review"
-                variant="neutral"
-                icon={<FileText size={16} color={Colors.primary} />}
+                subtitle="Quotes pending"
+                variant="purple"
+                icon={<FileText size={16} color={Colors.purple} />}
+                onPress={() => router.push('/proposals' as any)}
               />
             </View>
           </View>
@@ -184,10 +196,12 @@ export default function HomeScreen() {
         <View style={styles.sectionContainer}>
           <GlassCard variant="subtle" style={styles.askAiCard}>
             <View style={styles.askAiHeader}>
-              <Sparkles size={18} color={Colors.primary} />
-              <Text style={styles.askAiTitle}>ASK SOLOCEO</Text>
+              <View style={styles.sparkleCircle}>
+                <Sparkles size={14} color="#FFFFFF" />
+              </View>
+              <Text style={styles.askAiTitle}>ASK SOLOCEO AI</Text>
             </View>
-            <Text style={styles.askAiSubtitle}>"What should I do today?"</Text>
+            <Text style={styles.askAiSubtitle}>What should I do today?</Text>
 
             <View style={styles.quickPromptChips}>
               <TouchableOpacity
@@ -195,8 +209,11 @@ export default function HomeScreen() {
                 activeOpacity={0.7}
                 onPress={() => router.push('/(tabs)/ai')}
               >
-                <Text style={styles.promptChipText}>Who owes me money?</Text>
-                <ArrowRight size={12} color={Colors.primary} />
+                <View style={styles.promptChipLeft}>
+                  <View style={[styles.promptDot, { backgroundColor: Colors.warning }]} />
+                  <Text style={styles.promptChipText}>Who owes me money & overdue invoices?</Text>
+                </View>
+                <ArrowRight size={13} color={Colors.primary} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -204,8 +221,11 @@ export default function HomeScreen() {
                 activeOpacity={0.7}
                 onPress={() => router.push('/(tabs)/ai')}
               >
-                <Text style={styles.promptChipText}>Which leads should I follow up?</Text>
-                <ArrowRight size={12} color={Colors.primary} />
+                <View style={styles.promptChipLeft}>
+                  <View style={[styles.promptDot, { backgroundColor: Colors.info }]} />
+                  <Text style={styles.promptChipText}>Which leads need follow-up today?</Text>
+                </View>
+                <ArrowRight size={13} color={Colors.primary} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -213,8 +233,11 @@ export default function HomeScreen() {
                 activeOpacity={0.7}
                 onPress={() => router.push('/proposals/create')}
               >
-                <Text style={styles.promptChipText}>Create new proposal & scope</Text>
-                <ArrowRight size={12} color={Colors.primary} />
+                <View style={styles.promptChipLeft}>
+                  <View style={[styles.promptDot, { backgroundColor: Colors.primary }]} />
+                  <Text style={styles.promptChipText}>Draft new proposal & scope deliverables</Text>
+                </View>
+                <ArrowRight size={13} color={Colors.primary} />
               </TouchableOpacity>
             </View>
           </GlassCard>
@@ -223,25 +246,25 @@ export default function HomeScreen() {
         {/* Business Intelligence & Analytics Hub Widget */}
         <View style={styles.sectionContainer}>
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.88}
             onPress={() => router.push('/analytics' as any)}
           >
-            <GlassCard variant="elevated" style={styles.automationsWidgetCard}>
+            <GlassCard variant="glow" style={styles.automationsWidgetCard}>
               <View style={styles.automationsWidgetRow}>
                 <View style={styles.automationsWidgetLeft}>
-                  <View style={[styles.autoWidgetIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                    <TrendingUp size={16} color="#059669" />
+                  <View style={[styles.autoWidgetIconWrap, { backgroundColor: Colors.primarySubtle }]}>
+                    <TrendingUp size={18} color={Colors.primary} />
                   </View>
                   <View>
                     <Text style={styles.autoWidgetTitle}>Business Intelligence &amp; Analytics</Text>
-                    <Text style={styles.autoWidgetSubtitle}>Revenue, Pipeline Funnel &amp; AI Reports</Text>
+                    <Text style={styles.autoWidgetSubtitle}>Revenue breakdown, pipeline &amp; AI insights</Text>
                   </View>
                 </View>
                 <View style={styles.autoWidgetRight}>
-                  <View style={[styles.runningPill, { backgroundColor: '#ECFDF5' }]}>
-                    <Text style={[styles.runningPillText, { color: '#059669' }]}>Active</Text>
+                  <View style={[styles.runningPill, { backgroundColor: Colors.primarySubtle }]}>
+                    <Text style={[styles.runningPillText, { color: Colors.primaryDark }]}>Live Hub</Text>
                   </View>
-                  <ArrowRight size={16} color="#94A3B8" />
+                  <ArrowRight size={16} color={Colors.textMuted} />
                 </View>
               </View>
             </GlassCard>
@@ -413,6 +436,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderLeftWidth: 4,
     borderLeftColor: Colors.primary,
+    borderRadius: 22,
     ...Shadows.glass,
   },
   briefHeader: {
@@ -425,28 +449,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: Colors.primarySubtle,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   briefBadgeText: {
     fontSize: 11,
     fontWeight: '800',
-    color: Colors.primary,
+    color: Colors.primaryDark,
     letterSpacing: 0.8,
+  },
+  liveSyncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(241, 245, 249, 0.8)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  liveSyncDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.primary,
   },
   briefTimestamp: {
     fontSize: 11,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
+    fontWeight: '600',
   },
   briefTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.text,
-    lineHeight: 22,
+    lineHeight: 23,
     marginBottom: 6,
   },
   briefDescription: {
     fontSize: 13,
     color: Colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 19,
     marginBottom: 16,
   },
   briefActions: {
@@ -461,24 +505,34 @@ const styles = StyleSheet.create({
   },
   askAiCard: {
     padding: 16,
+    borderRadius: 22,
   },
   askAiHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
+    gap: 8,
+    marginBottom: 6,
+  },
+  sparkleCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   askAiTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.6,
+    color: Colors.primaryDark,
+    letterSpacing: 0.8,
   },
   askAiSubtitle: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '800',
     color: Colors.text,
-    marginBottom: 12,
+    marginBottom: 14,
+    letterSpacing: -0.4,
   },
   quickPromptChips: {
     gap: 8,
@@ -487,18 +541,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.card,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: Colors.borderGlass,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 12,
-    ...Shadows.card,
+    borderRadius: 14,
+    ...Shadows.sm,
+  },
+  promptChipLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 8,
+  },
+  promptDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   promptChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: Colors.text,
+    letterSpacing: -0.1,
   },
   teamCard: {
     paddingVertical: 12,

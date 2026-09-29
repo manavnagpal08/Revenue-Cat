@@ -85,16 +85,17 @@ export default function SalesScreen() {
           <TouchableOpacity
             style={styles.customersBtn}
             onPress={() => router.push('/customers')}
+            activeOpacity={0.75}
           >
-            <Users size={16} color={Colors.primary} />
+            <Users size={15} color={Colors.primaryDark} />
             <Text style={styles.customersBtnText}>CRM</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addButton}
-            activeOpacity={0.8}
+            activeOpacity={0.84}
             onPress={() => router.push('/leads/create')}
           >
-            <Plus size={20} color="#FFFFFF" />
+            <Plus size={20} color="#FFFFFF" strokeWidth={2.4} />
           </TouchableOpacity>
         </View>
       </View>

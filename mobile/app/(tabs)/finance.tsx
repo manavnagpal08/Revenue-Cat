@@ -83,16 +83,17 @@ export default function FinanceScreen() {
           <TouchableOpacity
             style={styles.proposalsBtn}
             onPress={() => router.push('/proposals')}
+            activeOpacity={0.75}
           >
-            <FileText size={16} color={Colors.primary} />
+            <FileText size={15} color={Colors.primaryDark} />
             <Text style={styles.proposalsBtnText}>Proposals</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addButton}
-            activeOpacity={0.8}
+            activeOpacity={0.84}
             onPress={() => router.push('/invoices/create')}
           >
-            <Plus size={20} color="#FFFFFF" />
+            <Plus size={20} color="#FFFFFF" strokeWidth={2.4} />
           </TouchableOpacity>
         </View>
       </View>
