@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -21,27 +21,49 @@ import {
   ChevronRight,
   User,
   Building,
+  Plus,
+  Edit3,
 } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
+import { WorkspaceSwitcherModal } from '../../src/components/WorkspaceSwitcherModal';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function MoreScreen() {
   const router = useRouter();
-  const { profile, currentBusiness, signOut } = useAuthStore();
+  const { profile, currentBusiness, businesses, signOut } = useAuthStore();
+  const [switcherVisible, setSwitcherVisible] = useState(false);
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out of SoloCEO?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Workspace & Settings</Text>
+        <Text style={styles.title}>Workspace & Profile</Text>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Profile / Business Card */}
+        {/* User Profile Card */}
         <GlassCard style={styles.profileCard}>
           <View style={styles.profileRow}>
             <View style={styles.avatarCircle}>
@@ -52,17 +74,64 @@ export default function MoreScreen() {
             <View style={styles.profileInfo}>
               <Text style={styles.userName}>{profile?.full_name || 'Alex Rivera'}</Text>
               <Text style={styles.userEmail}>{profile?.email || 'alex.founder@soloceo.app'}</Text>
-              <View style={styles.bizTag}>
-                <Building size={12} color={Colors.primary} />
-                <Text style={styles.bizTagText}>
-                  {currentBusiness?.name || 'Rivera Design & Tech Studio'}
+            </View>
+            <TouchableOpacity
+              style={styles.editIconBtn}
+              onPress={() => router.push('/edit-profile')}
+            >
+              <Edit3 size={16} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </GlassCard>
+
+        {/* Active Business Workspace Card */}
+        <Text style={styles.sectionHeader}>ACTIVE WORKSPACE</Text>
+        <GlassCard variant="elevated" style={styles.workspaceCard}>
+          <View style={styles.wsHeader}>
+            <View style={styles.wsLeft}>
+              <View style={styles.wsIconBox}>
+                <Building size={20} color={Colors.primary} />
+              </View>
+              <View>
+                <Text style={styles.wsName}>{currentBusiness?.name || 'Rivera Studio'}</Text>
+                <Text style={styles.wsRole}>
+                  {currentBusiness?.industry || 'Consulting'} • Owner
                 </Text>
               </View>
             </View>
+            <TouchableOpacity
+              style={styles.switchBtn}
+              onPress={() => setSwitcherVisible(true)}
+            >
+              <Text style={styles.switchText}>Switch ({businesses.length})</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.wsDivider} />
+
+          <View style={styles.wsActionRow}>
+            <TouchableOpacity
+              style={styles.wsSubAction}
+              onPress={() => router.push('/edit-business')}
+            >
+              <Edit3 size={14} color={Colors.textSecondary} />
+              <Text style={styles.wsSubActionText}>Edit Business Info</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.wsSubAction}
+              onPress={() => router.push('/create-business')}
+            >
+              <Plus size={14} color={Colors.primary} />
+              <Text style={[styles.wsSubActionText, { color: Colors.primary }]}>
+                New Workspace
+              </Text>
+            </TouchableOpacity>
           </View>
         </GlassCard>
 
         {/* RevenueCat Subscription Card */}
+        <Text style={styles.sectionHeader}>MEMBERSHIP & PLAN</Text>
         <GlassCard variant="elevated" style={styles.subscriptionCard}>
           <View style={styles.subHeader}>
             <View style={styles.subBadge}>
@@ -147,7 +216,7 @@ export default function MoreScreen() {
               </View>
               <View>
                 <Text style={styles.settingLabel}>Business Messaging</Text>
-                <Text style={styles.settingSub}>WhatsApp & CRM conversation sync</Text>
+                <Text style={styles.settingSub}>WhatsApp & CRM sync</Text>
               </View>
             </View>
             <View style={styles.connectedPill}>
@@ -159,7 +228,7 @@ export default function MoreScreen() {
         {/* Security & Sign Out */}
         <Text style={styles.sectionHeader}>ACCOUNT & SECURITY</Text>
         <GlassCard style={styles.settingsGroup}>
-          <TouchableOpacity style={styles.settingItem} onPress={signOut}>
+          <TouchableOpacity style={styles.settingItem} onPress={handleSignOut}>
             <View style={styles.settingLeft}>
               <View style={[styles.iconBox, { backgroundColor: Colors.dangerBg }]}>
                 <LogOut size={16} color={Colors.danger} />
@@ -170,6 +239,12 @@ export default function MoreScreen() {
           </TouchableOpacity>
         </GlassCard>
       </ScrollView>
+
+      {/* Workspace Switcher Modal */}
+      <WorkspaceSwitcherModal
+        visible={switcherVisible}
+        onClose={() => setSwitcherVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -228,17 +303,89 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 13,
     color: Colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  bizTag: {
+  editIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primarySubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  workspaceCard: {
+    marginBottom: 16,
+    padding: 16,
+    ...Shadows.glass,
+  },
+  wsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  wsLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 12,
+    flex: 1,
   },
-  bizTagText: {
+  wsIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.primarySubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wsName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  wsRole: {
     fontSize: 12,
-    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  switchBtn: {
+    backgroundColor: Colors.primarySubtle,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  switchText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: Colors.primary,
+  },
+  wsDivider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginVertical: 12,
+  },
+  wsActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  wsSubAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  wsSubActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
   subscriptionCard: {
     marginBottom: 16,
@@ -318,14 +465,6 @@ const styles = StyleSheet.create({
   usageSub: {
     fontSize: 11,
     color: Colors.textMuted,
-  },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-    marginTop: 4,
   },
   settingsGroup: {
     paddingVertical: 4,

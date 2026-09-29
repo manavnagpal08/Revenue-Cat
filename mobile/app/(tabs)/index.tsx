@@ -82,7 +82,7 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
         }
       >
-        {/* Top Header */}
+        {/* Top Header with Workspace Switcher */}
         <Header
           userName={profile?.full_name?.split(' ')[0] || 'Alex'}
           businessName={currentBusiness?.name || 'Rivera Studio'}

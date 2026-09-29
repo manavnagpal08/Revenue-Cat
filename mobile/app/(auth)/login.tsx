@@ -11,43 +11,47 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Sparkles, Mail, Lock, ArrowRight } from 'lucide-react-native';
+import { Sparkles, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
-import { supabase } from '../../src/lib/supabase';
+import { authService } from '../../src/services/authService';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const initializeAuth = useAuthStore((state) => state.initialize);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Required Fields', 'Please enter your email and password.');
+    setErrorMessage(null);
+    if (!email.trim() || !password) {
+      setErrorMessage('Please enter your email and password.');
       return;
     }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      await authService.signIn({
         email: email.trim(),
         password,
       });
 
-      if (error) {
-        Alert.alert('Login Failed', error.message);
-        setLoading(false);
-        return;
-      }
-
       await initializeAuth();
-      router.replace('/(tabs)');
+      const currentBiz = useAuthStore.getState().currentBusiness;
+      
+      if (!currentBiz) {
+        router.replace('/(onboarding)/setup-business');
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'An unexpected error occurred');
+      setErrorMessage(err.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -67,16 +71,22 @@ export default function LoginScreen() {
             </View>
             <Text style={styles.brandTitle}>SoloCEO</Text>
             <Text style={styles.brandSubtitle}>
-              AI Business Operations for Founders & Freelancers
+              Your AI Business Operations Team
             </Text>
           </View>
 
           {/* Login Glass Card */}
           <GlassCard variant="elevated" style={styles.card}>
-            <Text style={styles.cardTitle}>Sign In</Text>
+            <Text style={styles.cardTitle}>Sign In to Workspace</Text>
+
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
+              <Text style={styles.inputLabel}>Work Email</Text>
               <View style={styles.inputWrapper}>
                 <Mail size={18} color={Colors.textMuted} />
                 <TextInput
@@ -84,7 +94,10 @@ export default function LoginScreen() {
                   placeholder="alex.founder@soloceo.app"
                   placeholderTextColor={Colors.textMuted}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(val) => {
+                    setEmail(val);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -100,14 +113,27 @@ export default function LoginScreen() {
                   placeholder="••••••••••••"
                   placeholderTextColor={Colors.textMuted}
                   value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
+                  onChangeText={(val) => {
+                    setPassword(val);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  secureTextEntry={!showPassword}
                 />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeBtn}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color={Colors.textMuted} />
+                  ) : (
+                    <Eye size={18} color={Colors.textMuted} />
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
 
             <GlassButton
-              title="Sign In to Workspace"
+              title="Sign In"
               variant="primary"
               size="lg"
               loading={loading}
@@ -121,7 +147,7 @@ export default function LoginScreen() {
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>Don't have a workspace yet? </Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-              <Text style={styles.footerLink}>Create Business</Text>
+              <Text style={styles.footerLink}>Create Workspace</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -174,6 +200,19 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 16,
   },
+  errorContainer: {
+    backgroundColor: Colors.dangerBg,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorText: {
+    color: Colors.danger,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   inputGroup: {
     marginBottom: 16,
   },
@@ -200,6 +239,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: Colors.text,
+  },
+  eyeBtn: {
+    padding: 4,
   },
   footerRow: {
     flexDirection: 'row',

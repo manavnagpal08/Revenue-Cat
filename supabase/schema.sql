@@ -314,6 +314,26 @@ CREATE POLICY "Members can view their businesses" ON public.businesses
 CREATE POLICY "Owners can insert/update business" ON public.businesses
     FOR ALL USING (owner_id = auth.uid());
 
+-- Business Members policies
+CREATE POLICY "Users can view memberships" ON public.business_members
+    FOR SELECT USING (
+        user_id = auth.uid() OR
+        EXISTS (SELECT 1 FROM public.businesses WHERE id = business_id AND owner_id = auth.uid())
+    );
+
+CREATE POLICY "Owners can insert/manage memberships" ON public.business_members
+    FOR ALL USING (
+        user_id = auth.uid() OR
+        EXISTS (SELECT 1 FROM public.businesses WHERE id = business_id AND owner_id = auth.uid())
+    );
+
+-- Business Settings policies
+CREATE POLICY "Members can view/edit settings" ON public.business_settings
+    FOR ALL USING (
+        public.is_business_member(business_id) OR
+        EXISTS (SELECT 1 FROM public.businesses WHERE id = business_id AND owner_id = auth.uid())
+    );
+
 -- Universal multi-tenant policies for business resources
 CREATE POLICY "Business data access" ON public.customers
     FOR ALL USING (public.is_business_member(business_id));

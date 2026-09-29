@@ -1,77 +1,175 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { UserProfile, Business } from '../types';
-import { Session } from '@supabase/supabase-js';
+import { Session, User } from '@supabase/supabase-js';
+import { profileService } from '../services/profileService';
+import { workspaceService, CreateBusinessInput } from '../services/workspaceService';
 
 interface AuthState {
   session: Session | null;
+  user: User | null;
   profile: UserProfile | null;
   currentBusiness: Business | null;
   businesses: Business[];
   isLoading: boolean;
   isInitialized: boolean;
-  
-  setSession: (session: Session | null) => void;
-  setProfile: (profile: UserProfile | null) => void;
-  setCurrentBusiness: (business: Business | null) => void;
-  setBusinesses: (businesses: Business[]) => void;
-  setIsLoading: (isLoading: boolean) => void;
+  error: string | null;
+
+  // Actions
   initialize: () => Promise<void>;
+  setCurrentBusiness: (business: Business | null) => void;
+  switchBusiness: (businessId: string) => void;
+  refreshBusinesses: () => Promise<void>;
+  createBusiness: (input: CreateBusinessInput) => Promise<Business>;
+  updateBusiness: (businessId: string, updates: Partial<Business>) => Promise<Business>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<UserProfile>;
   signOut: () => Promise<void>;
+  clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
+  user: null,
   profile: null,
   currentBusiness: null,
   businesses: [],
   isLoading: true,
   isInitialized: false,
+  error: null,
 
-  setSession: (session) => set({ session }),
-  setProfile: (profile) => set({ profile }),
-  setCurrentBusiness: (currentBusiness) => set({ currentBusiness }),
-  setBusinesses: (businesses) => set({ businesses }),
-  setIsLoading: (isLoading) => set({ isLoading }),
+  clearError: () => set({ error: null }),
 
   initialize: async () => {
     try {
-      set({ isLoading: true });
+      set({ isLoading: true, error: null });
+
+      // 1. Get current session
       const { data: { session } } = await supabase.auth.getSession();
-      set({ session });
-
-      if (session?.user) {
-        // Fetch profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profile) set({ profile: profile as UserProfile });
-
-        // Fetch businesses
-        const { data: businesses } = await supabase
-          .from('businesses')
-          .select('*')
-          .eq('owner_id', session.user.id);
-
-        if (businesses && businesses.length > 0) {
-          set({
-            businesses: businesses as Business[],
-            currentBusiness: businesses[0] as Business,
-          });
-        }
+      
+      if (!session?.user) {
+        set({
+          session: null,
+          user: null,
+          profile: null,
+          currentBusiness: null,
+          businesses: [],
+          isLoading: false,
+          isInitialized: true,
+        });
+        return;
       }
-    } catch (err) {
-      console.error('Failed to initialize auth state:', err);
-    } finally {
-      set({ isLoading: false, isInitialized: true });
+
+      set({ session, user: session.user });
+
+      // 2. Fetch Profile from Supabase
+      const profile = await profileService.getCurrentProfile(session.user.id);
+      if (profile) {
+        set({ profile });
+      } else {
+        // Fallback user profile creation
+        const newProfile: UserProfile = {
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || 'Founder',
+          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+        };
+        set({ profile: newProfile });
+      }
+
+      // 3. Fetch User Businesses from Supabase
+      const businesses = await workspaceService.getUserBusinesses(session.user.id);
+      
+      let activeBiz: Business | null = null;
+      if (businesses.length > 0) {
+        // Preserve currently selected or select the first business
+        const prevId = get().currentBusiness?.id;
+        activeBiz = businesses.find((b) => b.id === prevId) || businesses[0];
+      }
+
+      set({
+        businesses,
+        currentBusiness: activeBiz,
+        isLoading: false,
+        isInitialized: true,
+      });
+    } catch (err: any) {
+      console.error('Error initializing Auth / Workspace state:', err);
+      set({
+        error: err.message || 'Failed to load session',
+        isLoading: false,
+        isInitialized: true,
+      });
     }
   },
 
+  setCurrentBusiness: (business) => {
+    set({ currentBusiness: business });
+  },
+
+  switchBusiness: (businessId: string) => {
+    const { businesses } = get();
+    const target = businesses.find((b) => b.id === businessId);
+    if (target) {
+      set({ currentBusiness: target });
+    }
+  },
+
+  refreshBusinesses: async () => {
+    const { user } = get();
+    if (!user) return;
+    try {
+      const businesses = await workspaceService.getUserBusinesses(user.id);
+      const current = get().currentBusiness;
+      const matched = businesses.find((b) => b.id === current?.id) || businesses[0] || null;
+      set({ businesses, currentBusiness: matched });
+    } catch (err: any) {
+      console.warn('Failed to refresh businesses:', err);
+    }
+  },
+
+  createBusiness: async (input: CreateBusinessInput) => {
+    const { user } = get();
+    if (!user) throw new Error('User is not authenticated');
+
+    const newBiz = await workspaceService.createBusiness(user.id, input);
+    const updated = [...get().businesses, newBiz];
+    set({ businesses: updated, currentBusiness: newBiz });
+    return newBiz;
+  },
+
+  updateBusiness: async (businessId: string, updates: Partial<Business>) => {
+    const updatedBiz = await workspaceService.updateBusiness(businessId, updates);
+    const updatedList = get().businesses.map((b) => (b.id === businessId ? updatedBiz : b));
+    set({
+      businesses: updatedList,
+      currentBusiness: get().currentBusiness?.id === businessId ? updatedBiz : get().currentBusiness,
+    });
+    return updatedBiz;
+  },
+
+  updateProfile: async (updates: Partial<UserProfile>) => {
+    const { user } = get();
+    if (!user) throw new Error('User is not authenticated');
+
+    const updated = await profileService.updateProfile(user.id, updates);
+    set({ profile: updated });
+    return updated;
+  },
+
   signOut: async () => {
-    await supabase.auth.signOut();
-    set({ session: null, profile: null, currentBusiness: null, businesses: [] });
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('Sign out warning:', err);
+    } finally {
+      set({
+        session: null,
+        user: null,
+        profile: null,
+        currentBusiness: null,
+        businesses: [],
+        isLoading: false,
+      });
+    }
   },
 }));

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Colors, Shadows } from '../constants/theme';
-import { Sparkles, Bell } from 'lucide-react-native';
+import { Sparkles, Bell, ChevronDown } from 'lucide-react-native';
+import { WorkspaceSwitcherModal } from './WorkspaceSwitcherModal';
 
 interface HeaderProps {
   userName?: string;
@@ -20,11 +21,21 @@ export const Header: React.FC<HeaderProps> = ({
   onProfilePress,
   showAiBadge = true,
 }) => {
+  const [switcherVisible, setSwitcherVisible] = useState(false);
+
   return (
     <View style={styles.container}>
       <View style={styles.leftContainer}>
         <View style={styles.tagRow}>
-          <Text style={styles.businessTag}>{businessName}</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.businessSwitcherTrigger}
+            onPress={() => setSwitcherVisible(true)}
+          >
+            <Text style={styles.businessTag}>{businessName}</Text>
+            <ChevronDown size={14} color={Colors.textSecondary} />
+          </TouchableOpacity>
+
           {showAiBadge ? (
             <View style={styles.aiBadge}>
               <Sparkles size={12} color={Colors.primary} />
@@ -56,6 +67,11 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </TouchableOpacity>
       </View>
+
+      <WorkspaceSwitcherModal
+        visible={switcherVisible}
+        onClose={() => setSwitcherVisible(false)}
+      />
     </View>
   );
 };
@@ -78,19 +94,30 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 4,
   },
+  businessSwitcherTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.card,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
   businessTag: {
     fontSize: 12,
     fontWeight: '700',
     color: Colors.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
   aiBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.primarySubtle,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 12,
     gap: 4,
   },

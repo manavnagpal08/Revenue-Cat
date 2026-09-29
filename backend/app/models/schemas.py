@@ -9,6 +9,14 @@ class ProfileBase(BaseModel):
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
 
+class ProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+class ProfileResponse(ProfileBase):
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
 class BusinessBase(BaseModel):
     name: str
     slug: Optional[str] = None
@@ -17,14 +25,43 @@ class BusinessBase(BaseModel):
     currency_symbol: str = "₹"
     phone: Optional[str] = None
     website: Optional[str] = None
+    address: Optional[str] = None
+    tax_number: Optional[str] = None
 
 class BusinessCreate(BusinessBase):
-    pass
+    timezone: Optional[str] = "Asia/Kolkata"
+
+class BusinessUpdate(BaseModel):
+    name: Optional[str] = None
+    industry: Optional[str] = None
+    currency: Optional[str] = None
+    currency_symbol: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+    tax_number: Optional[str] = None
+
+class BusinessSettingsBase(BaseModel):
+    ai_tone: Optional[str] = "professional"
+    default_invoice_due_days: Optional[int] = 14
+    default_tax_rate: Optional[float] = 18.00
+    notification_email: Optional[bool] = True
+    notification_push: Optional[bool] = True
+
+class BusinessSettingsUpdate(BaseModel):
+    ai_tone: Optional[str] = None
+    default_invoice_due_days: Optional[int] = None
+    default_tax_rate: Optional[float] = None
+    notification_email: Optional[bool] = None
+    notification_push: Optional[bool] = None
 
 class BusinessResponse(BusinessBase):
     id: str
     owner_id: str
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    settings: Optional[BusinessSettingsBase] = None
+    role: Optional[str] = "owner"
 
 # --- CRM Schemas ---
 class CustomerBase(BaseModel):

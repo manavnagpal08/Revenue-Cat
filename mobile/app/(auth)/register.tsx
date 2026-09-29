@@ -11,11 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Sparkles, Mail, Lock, User, ArrowRight } from 'lucide-react-native';
+import { Sparkles, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
-import { supabase } from '../../src/lib/supabase';
+import { authService } from '../../src/services/authService';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function RegisterScreen() {
@@ -23,46 +23,43 @@ export default function RegisterScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const initializeAuth = useAuthStore((state) => state.initialize);
 
   const handleRegister = async () => {
-    if (!fullName || !email || !password) {
-      Alert.alert('Required Fields', 'Please fill in all fields.');
+    setErrorMessage(null);
+
+    if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
+      setErrorMessage('Please fill in all required fields.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
       return;
     }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      await authService.signUp({
+        fullName: fullName.trim(),
         email: email.trim(),
         password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-          },
-        },
       });
-
-      if (error) {
-        Alert.alert('Registration Failed', error.message);
-        setLoading(false);
-        return;
-      }
-
-      // Upsert profile
-      if (data.user) {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          email: email.trim(),
-          full_name: fullName.trim(),
-        });
-      }
 
       await initializeAuth();
       router.replace('/(onboarding)/setup-business');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'An unexpected error occurred');
+      setErrorMessage(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -86,6 +83,12 @@ export default function RegisterScreen() {
           </View>
 
           <GlassCard variant="elevated" style={styles.card}>
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Full Name</Text>
               <View style={styles.inputWrapper}>
@@ -95,7 +98,10 @@ export default function RegisterScreen() {
                   placeholder="Alex Rivera"
                   placeholderTextColor={Colors.textMuted}
                   value={fullName}
-                  onChangeText={setFullName}
+                  onChangeText={(val) => {
+                    setFullName(val);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                 />
               </View>
             </View>
@@ -109,7 +115,10 @@ export default function RegisterScreen() {
                   placeholder="alex.founder@soloceo.app"
                   placeholderTextColor={Colors.textMuted}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(val) => {
+                    setEmail(val);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -122,11 +131,42 @@ export default function RegisterScreen() {
                 <Lock size={18} color={Colors.textMuted} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="••••••••••••"
+                  placeholder="At least 6 characters"
                   placeholderTextColor={Colors.textMuted}
                   value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
+                  onChangeText={(val) => {
+                    setPassword(val);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeBtn}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color={Colors.textMuted} />
+                  ) : (
+                    <Eye size={18} color={Colors.textMuted} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Confirm Password</Text>
+              <View style={styles.inputWrapper}>
+                <Lock size={18} color={Colors.textMuted} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Repeat your password"
+                  placeholderTextColor={Colors.textMuted}
+                  value={confirmPassword}
+                  onChangeText={(val) => {
+                    setConfirmPassword(val);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  secureTextEntry={!showPassword}
                 />
               </View>
             </View>
@@ -164,20 +204,20 @@ const styles = StyleSheet.create({
   },
   brandHeader: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   logoBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     ...Shadows.glow,
   },
   brandTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '900',
     color: Colors.text,
     letterSpacing: -0.6,
@@ -192,8 +232,21 @@ const styles = StyleSheet.create({
     padding: 20,
     ...Shadows.glass,
   },
+  errorContainer: {
+    backgroundColor: Colors.dangerBg,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorText: {
+    color: Colors.danger,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   inputLabel: {
     fontSize: 12,
@@ -218,6 +271,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: Colors.text,
+  },
+  eyeBtn: {
+    padding: 4,
   },
   footerRow: {
     flexDirection: 'row',
