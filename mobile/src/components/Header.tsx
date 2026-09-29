@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { safeHaptic } from '../utils/haptics';
 import { Colors, Shadows } from '../constants/theme';
 import { Sparkles, Bell, ChevronDown } from 'lucide-react-native';
 import { WorkspaceSwitcherModal } from './WorkspaceSwitcherModal';
@@ -25,11 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [switcherVisible, setSwitcherVisible] = useState(false);
 
   const handleSwitcherOpen = () => {
-    if (Platform.OS !== 'web') {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      } catch {}
-    }
+    safeHaptic.light();
     setSwitcherVisible(true);
   };
 
@@ -62,9 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => {
-            if (Platform.OS !== 'web') {
-              try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
-            }
+            safeHaptic.light();
             onNotificationPress?.();
           }}
           style={styles.iconButton}
@@ -76,9 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => {
-            if (Platform.OS !== 'web') {
-              try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); } catch {}
-            }
+            safeHaptic.light();
             onProfilePress?.();
           }}
           style={styles.avatarButton}

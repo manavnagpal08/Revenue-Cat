@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
+import { safeHaptic } from '../utils/haptics';
 import { Colors, Shadows, Gradients } from '../constants/theme';
 
 interface GlassButtonProps extends TouchableOpacityProps {
@@ -36,10 +36,8 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
   ...props
 }) => {
   const handlePress = (e: any) => {
-    if (enableHaptics && Platform.OS !== 'web') {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } catch {}
+    if (enableHaptics) {
+      safeHaptic.medium();
     }
     onPress?.(e);
   };
