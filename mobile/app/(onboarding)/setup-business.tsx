@@ -5,35 +5,30 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Building, Globe, Phone, DollarSign, Clock, ArrowRight, Sparkles } from 'lucide-react-native';
-import { Colors, Shadows } from '../../src/constants/theme';
-import { GlassCard } from '../../src/components/GlassCard';
-import { GlassButton } from '../../src/components/GlassButton';
+import { ArrowLeft, Store, ChevronDown, ArrowRight } from 'lucide-react-native';
+import { Colors } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function SetupBusinessScreen() {
   const router = useRouter();
-  const [businessName, setBusinessName] = useState('');
-  const [industry, setIndustry] = useState('');
-  const [currencySymbol, setCurrencySymbol] = useState('₹');
-  const [timezone, setTimezone] = useState('Asia/Kolkata');
-  const [website, setWebsite] = useState('');
-  const [phone, setPhone] = useState('');
+  const [businessName, setBusinessName] = useState('Acme Digital');
+  const [businessType, setBusinessType] = useState('Agency');
+  const [industry, setIndustry] = useState('Digital Services');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { createBusiness } = useAuthStore();
 
-  const handleCreateBusiness = async () => {
+  const handleNext = async () => {
     setErrorMsg(null);
     if (!businessName.trim()) {
-      setErrorMsg('Please enter your business or studio name.');
+      setErrorMsg('Please enter your business name.');
       return;
     }
 
@@ -41,11 +36,9 @@ export default function SetupBusinessScreen() {
     try {
       await createBusiness({
         name: businessName.trim(),
-        industry: industry.trim() || 'Consulting & Technology Services',
-        currency: currencySymbol === '₹' ? 'INR' : 'USD',
-        currency_symbol: currencySymbol.trim() || '₹',
-        website: website.trim() || undefined,
-        phone: phone.trim() || undefined,
+        industry: industry.trim() || 'Digital Services',
+        currency: 'INR',
+        currency_symbol: '₹',
       });
 
       router.replace('/(tabs)');
@@ -62,6 +55,14 @@ export default function SetupBusinessScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {/* Top Bar with Step Indicator */}
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <ArrowLeft size={20} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={styles.stepIndicator}>1/4</Text>
+        </View>
+
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
@@ -69,122 +70,68 @@ export default function SetupBusinessScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconCircle}>
-              <Sparkles size={32} color={Colors.primary} />
+              <Store size={32} color="#059669" />
             </View>
-            <Text style={styles.title}>Welcome to SoloCEO</Text>
+            <Text style={styles.title}>Let's set up your business</Text>
             <Text style={styles.subtitle}>
-              Let's set up your business operations hub. SoloCEO's AI agents will connect directly to your workspace.
+              This helps us personalize your SoloCEO experience.
             </Text>
           </View>
 
-          <GlassCard variant="elevated" style={styles.card}>
+          {/* Form Card */}
+          <View style={styles.formCard}>
             {errorMsg ? (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{errorMsg}</Text>
               </View>
             ) : null}
 
+            {/* Business Name */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Business / Studio Name *</Text>
-              <View style={styles.inputWrapper}>
-                <Building size={18} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="e.g. Rivera Design Studio"
-                  placeholderTextColor={Colors.textMuted}
-                  value={businessName}
-                  onChangeText={(val) => {
-                    setBusinessName(val);
-                    if (errorMsg) setErrorMsg(null);
-                  }}
-                />
-              </View>
+              <Text style={styles.inputLabel}>Business Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Acme Digital"
+                placeholderTextColor="#94A3B8"
+                value={businessName}
+                onChangeText={(val) => {
+                  setBusinessName(val);
+                  if (errorMsg) setErrorMsg(null);
+                }}
+              />
             </View>
 
+            {/* Business Type Dropdown */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Industry / Specialization</Text>
-              <View style={styles.inputWrapper}>
-                <Globe size={18} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="e.g. Design & Consulting"
-                  placeholderTextColor={Colors.textMuted}
-                  value={industry}
-                  onChangeText={setIndustry}
-                />
-              </View>
+              <Text style={styles.inputLabel}>Business Type</Text>
+              <TouchableOpacity style={styles.dropdownBox} activeOpacity={0.8}>
+                <Text style={styles.dropdownText}>{businessType}</Text>
+                <ChevronDown size={16} color="#64748B" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.rowInputs}>
-              <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Currency</Text>
-                <View style={styles.inputWrapper}>
-                  <DollarSign size={18} color={Colors.textMuted} />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="₹ (INR)"
-                    placeholderTextColor={Colors.textMuted}
-                    value={currencySymbol}
-                    onChangeText={setCurrencySymbol}
-                  />
-                </View>
-              </View>
-
-              <View style={[styles.inputGroup, { flex: 1.2 }]}>
-                <Text style={styles.inputLabel}>Timezone</Text>
-                <View style={styles.inputWrapper}>
-                  <Clock size={18} color={Colors.textMuted} />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Asia/Kolkata"
-                    placeholderTextColor={Colors.textMuted}
-                    value={timezone}
-                    onChangeText={setTimezone}
-                  />
-                </View>
-              </View>
-            </View>
-
+            {/* Industry Dropdown */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Website</Text>
-              <View style={styles.inputWrapper}>
-                <Globe size={18} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="https://riverastudio.io"
-                  placeholderTextColor={Colors.textMuted}
-                  value={website}
-                  onChangeText={setWebsite}
-                  autoCapitalize="none"
-                />
-              </View>
+              <Text style={styles.inputLabel}>Industry</Text>
+              <TouchableOpacity style={styles.dropdownBox} activeOpacity={0.8}>
+                <Text style={styles.dropdownText}>{industry}</Text>
+                <ChevronDown size={16} color="#64748B" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Contact Phone</Text>
-              <View style={styles.inputWrapper}>
-                <Phone size={18} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="+91 98765 43210"
-                  placeholderTextColor={Colors.textMuted}
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                />
-              </View>
-            </View>
-
-            <GlassButton
-              title="Launch Business Command Center"
-              variant="primary"
-              size="lg"
-              loading={loading}
-              icon={<ArrowRight size={18} color="#FFFFFF" />}
-              onPress={handleCreateBusiness}
-              style={{ marginTop: 8 }}
-            />
-          </GlassCard>
+            {/* Next Button */}
+            <TouchableOpacity
+              style={styles.nextBtn}
+              onPress={handleNext}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.nextBtnText}>
+                {loading ? 'Creating...' : 'Next'}
+              </Text>
+              {!loading && <ArrowRight size={16} color="#FFFFFF" />}
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -194,86 +141,131 @@ export default function SetupBusinessScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC',
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  backBtn: {
+    padding: 6,
+  },
+  stepIndicator: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748B',
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 16,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginVertical: 18,
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.primarySubtle,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-    ...Shadows.glow,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.2)',
   },
   title: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: Colors.text,
-    letterSpacing: -0.5,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.4,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: '#64748B',
     textAlign: 'center',
-    lineHeight: 18,
     marginTop: 6,
-    paddingHorizontal: 12,
+    maxWidth: 280,
   },
-  card: {
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     padding: 20,
-    ...Shadows.glass,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 10,
   },
   errorBox: {
-    backgroundColor: Colors.dangerBg,
+    backgroundColor: '#FEF2F2',
     padding: 10,
-    borderRadius: 10,
+    borderRadius: 8,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#FECACA',
   },
   errorText: {
-    color: Colors.danger,
+    color: '#DC2626',
     fontSize: 12,
     fontWeight: '600',
   },
   inputGroup: {
-    marginBottom: 14,
-  },
-  rowInputs: {
-    flexDirection: 'row',
-    gap: 12,
+    marginBottom: 16,
   },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
-    color: Colors.textSecondary,
+    color: '#0F172A',
     marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: Colors.background,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 48,
   },
   textInput: {
-    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    height: 46,
     fontSize: 14,
-    color: Colors.text,
+    color: '#0F172A',
+    fontWeight: '500',
+  },
+  dropdownBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    height: 46,
+  },
+  dropdownText: {
+    fontSize: 14,
+    color: '#0F172A',
+    fontWeight: '500',
+  },
+  nextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#059669',
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 10,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  nextBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

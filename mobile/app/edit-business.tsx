@@ -1,181 +1,138 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+  TouchableOpacity,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Building, Globe, Phone, DollarSign, FileText, Check, Save } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Building,
+  Phone,
+  Globe,
+  DollarSign,
+  Users,
+  Layers,
+  CreditCard,
+  ChevronRight,
+  Trash2,
+} from 'lucide-react-native';
 import { Colors } from '../src/constants/theme';
-import { GlassCard } from '../src/components/GlassCard';
-import { GlassButton } from '../src/components/GlassButton';
 import { useAuthStore } from '../src/store/authStore';
 
-export default function EditBusinessScreen() {
+export default function BusinessSettingsScreen() {
   const router = useRouter();
-  const { currentBusiness, updateBusiness } = useAuthStore();
+  const { currentBusiness } = useAuthStore();
 
-  const [name, setName] = useState(currentBusiness?.name || '');
-  const [industry, setIndustry] = useState(currentBusiness?.industry || '');
-  const [website, setWebsite] = useState(currentBusiness?.website || '');
-  const [phone, setPhone] = useState(currentBusiness?.phone || '');
-  const [currencySymbol, setCurrencySymbol] = useState(currentBusiness?.currency_symbol || '₹');
-  const [address, setAddress] = useState(currentBusiness?.address || '');
-  const [saving, setSaving] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
-  const handleSave = async () => {
-    if (!name.trim()) {
-      Alert.alert('Required', 'Please enter business name.');
-      return;
-    }
-    if (!currentBusiness?.id) return;
-
-    setSaving(true);
-    setSavedSuccess(false);
-    try {
-      await updateBusiness(currentBusiness.id, {
-        name: name.trim(),
-        industry: industry.trim() || undefined,
-        website: website.trim() || undefined,
-        phone: phone.trim() || undefined,
-        currency_symbol: currencySymbol.trim() || '₹',
-        address: address.trim() || undefined,
-      });
-
-      setSavedSuccess(true);
-      setTimeout(() => {
-        router.back();
-      }, 700);
-    } catch (err: any) {
-      Alert.alert('Save Failed', err.message || 'Could not update business details');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const menuItems = [
+    {
+      id: 'info',
+      icon: Building,
+      title: 'Business Information',
+      action: () => Alert.alert('Business Info', 'Update your business name and details.'),
+    },
+    {
+      id: 'contact',
+      icon: Phone,
+      title: 'Contact Details',
+      action: () => Alert.alert('Contact Details', 'Update address, phone, and website.'),
+    },
+    {
+      id: 'currency',
+      icon: DollarSign,
+      title: 'Currency & Timezone',
+      action: () => Alert.alert('Currency & Timezone', 'Current: INR (₹) / Asia/Kolkata'),
+    },
+    {
+      id: 'team',
+      icon: Users,
+      title: 'Team Members',
+      action: () => router.push('/team' as any),
+    },
+    {
+      id: 'integrations',
+      icon: Layers,
+      title: 'Integrations',
+      action: () => router.push('/integrations' as any),
+    },
+    {
+      id: 'billing',
+      icon: CreditCard,
+      title: 'Billing & Subscription',
+      action: () => router.push('/billing' as any),
+    },
+  ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <ArrowLeft size={20} color={Colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Business Workspace</Text>
-          <View style={{ width: 40 }} />
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <ArrowLeft size={20} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Business Settings</Text>
+        <View style={{ width: 32 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Business Profile Card */}
+        <View style={styles.businessHeaderCard}>
+          <View style={styles.avatarBox}>
+            <Building size={24} color="#3B82F6" />
+          </View>
+          <View style={styles.businessHeaderInfo}>
+            <Text style={styles.businessName}>
+              {currentBusiness?.name || 'Acme Digital'}
+            </Text>
+            <Text style={styles.businessType}>
+              {currentBusiness?.industry || 'Agency • Digital Services'}
+            </Text>
+          </View>
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+        {/* Menu Items List */}
+        <View style={styles.menuCard}>
+          {menuItems.map((item, idx) => {
+            const Icon = item.icon;
+            const isLast = idx === menuItems.length - 1;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.menuRow, !isLast && styles.menuRowBorder]}
+                activeOpacity={0.7}
+                onPress={item.action}
+              >
+                <View style={styles.menuIconBox}>
+                  <Icon size={18} color="#64748B" />
+                </View>
+                <Text style={styles.menuTitle}>{item.title}</Text>
+                <ChevronRight size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Delete Business Action */}
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={() =>
+            Alert.alert(
+              'Delete Business Workspace',
+              'Are you sure you want to delete this business workspace? This action cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => router.replace('/(tabs)') },
+              ]
+            )
+          }
         >
-          <GlassCard variant="elevated" style={styles.formCard}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Business Name</Text>
-              <View style={styles.inputWrapper}>
-                <Building size={18} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Rivera Studio"
-                  placeholderTextColor={Colors.textMuted}
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Industry / Sector</Text>
-              <View style={styles.inputWrapper}>
-                <FileText size={18} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  value={industry}
-                  onChangeText={setIndustry}
-                  placeholder="Design & Consulting"
-                  placeholderTextColor={Colors.textMuted}
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Currency Symbol</Text>
-              <View style={styles.inputWrapper}>
-                <DollarSign size={18} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  value={currencySymbol}
-                  onChangeText={setCurrencySymbol}
-                  placeholder="₹ or $"
-                  placeholderTextColor={Colors.textMuted}
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Website</Text>
-              <View style={styles.inputWrapper}>
-                <Globe size={18} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  value={website}
-                  onChangeText={setWebsite}
-                  placeholder="https://riverastudio.io"
-                  placeholderTextColor={Colors.textMuted}
-                  autoCapitalize="none"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Contact Phone</Text>
-              <View style={styles.inputWrapper}>
-                <Phone size={18} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.textInput}
-                  value={phone}
-                  onChangeText={setPhone}
-                  placeholder="+91 98765 43210"
-                  placeholderTextColor={Colors.textMuted}
-                  keyboardType="phone-pad"
-                />
-              </View>
-            </View>
-
-            <GlassButton
-              title={
-                savedSuccess
-                  ? 'Saved to Supabase!'
-                  : saving
-                  ? 'Saving Business...'
-                  : 'Save Business Details'
-              }
-              variant={savedSuccess ? 'secondary' : 'primary'}
-              size="lg"
-              loading={saving}
-              icon={
-                savedSuccess ? (
-                  <Check size={18} color={Colors.success} />
-                ) : (
-                  <Save size={18} color="#FFFFFF" />
-                )
-              }
-              onPress={handleSave}
-              style={{ marginTop: 12 }}
-            />
-          </GlassCard>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <Text style={styles.deleteBtnText}>Delete Business</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -183,7 +140,7 @@ export default function EditBusinessScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
@@ -191,57 +148,98 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderColor: '#E2E8F0',
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.glass,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
+    padding: 6,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#0F172A',
+    letterSpacing: -0.3,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    paddingBottom: 60,
   },
-  formCard: {
-    padding: 20,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  inputWrapper: {
+  businessHeaderCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: Colors.background,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 48,
+    borderColor: '#E2E8F0',
+    gap: 14,
+    marginBottom: 16,
   },
-  textInput: {
+  avatarBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  businessHeaderInfo: {
     flex: 1,
-    fontSize: 14,
-    color: Colors.text,
+  },
+  businessName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  businessType: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  menuCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    gap: 12,
+  },
+  menuRowBorder: {
+    borderBottomWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  menuIconBox: {
+    width: 28,
+    alignItems: 'center',
+  },
+  menuTitle: {
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  deleteBtn: {
+    marginTop: 24,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#DC2626',
   },
 });

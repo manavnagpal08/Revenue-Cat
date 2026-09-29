@@ -1,161 +1,146 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   ScrollView,
   TouchableOpacity,
-  RefreshControl,
-  ActivityIndicator,
-  StyleSheet,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import {
   ArrowLeft,
+  Crown,
   Sparkles,
-  Zap,
   TrendingUp,
-  Award,
-  CreditCard,
+  DollarSign,
+  FileText,
+  Plus,
 } from 'lucide-react-native';
-import { useAuthStore } from '../../src/store/authStore';
-import { analyticsService, AIUsageAnalytics } from '../../src/services/analyticsService';
-import { GlassCard } from '../../src/components/GlassCard';
+import { Colors } from '../../src/constants/theme';
 
-export default function AIUsageAnalyticsScreen() {
+export default function AIUsageScreen() {
   const router = useRouter();
-  const { currentBusiness } = useAuthStore();
-  const businessId = currentBusiness?.id || 'default';
 
-  const [data, setData] = useState<AIUsageAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const barData = [
+    { month: 'Jan', height: 40 },
+    { month: 'Feb', height: 60 },
+    { month: 'Mar', height: 50 },
+    { month: 'Apr', height: 75 },
+    { month: 'May', height: 65 },
+    { month: 'Jun', height: 90 },
+  ];
 
-  const fetchAIUsage = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await analyticsService.getAIUsage(businessId, '30d');
-      setData(res);
-    } catch (err) {
-      console.warn('Error loading AI usage analytics:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [businessId]);
-
-  useEffect(() => {
-    fetchAIUsage();
-  }, [fetchAIUsage]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchAIUsage();
-  };
-
-  const usedCredits = data?.credits_used || 0;
-  const totalCredits = data?.credits_total || 50;
-  const usedPercent = totalCredits > 0 ? Math.round((usedCredits / totalCredits) * 100) : 0;
+  const agentBreakdown = [
+    {
+      id: 'supervisor',
+      name: 'Supervisor Agent',
+      credits: '450 credits',
+      color: '#3B82F6',
+      bgColor: '#EFF6FF',
+      icon: Sparkles,
+    },
+    {
+      id: 'sales',
+      name: 'Sales Agent',
+      credits: '320 credits',
+      color: '#10B981',
+      bgColor: '#ECFDF5',
+      icon: TrendingUp,
+    },
+    {
+      id: 'finance',
+      name: 'Finance Agent',
+      credits: '280 credits',
+      color: '#8B5CF6',
+      bgColor: '#F5F3FF',
+      icon: DollarSign,
+    },
+    {
+      id: 'proposal',
+      name: 'Proposal Agent',
+      credits: '200 credits',
+      color: '#F97316',
+      bgColor: '#FFF7ED',
+      icon: FileText,
+    },
+  ];
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <ArrowLeft size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>AI Intelligence & Credits</Text>
-        <TouchableOpacity
-          style={styles.upgradeBtn}
-          onPress={() => router.push('/paywall')}
-        >
-          <Sparkles size={14} color="#059669" />
-          <Text style={styles.upgradeBtnText}>Upgrade</Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>AI Usage</Text>
+        <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />
-        }
-      >
-        {loading && !refreshing ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#059669" />
-            <Text style={styles.loadingText}>Fetching AI Usage Metrics...</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Current Plan Card */}
+        <View style={styles.planCard}>
+          <View>
+            <Text style={styles.planLabel}>Current Plan</Text>
+            <Text style={styles.planName}>Business</Text>
           </View>
-        ) : (
-          <>
-            {/* Credit Meter Card */}
-            <GlassCard style={styles.meterCard} variant="elevated">
-              <View style={styles.meterHeader}>
-                <View>
-                  <Text style={styles.meterTitle}>Monthly AI Credits</Text>
-                  <Text style={styles.meterSubtitle}>Reset cycle in 12 days</Text>
+
+          <TouchableOpacity
+            style={styles.upgradeBtn}
+            onPress={() => router.push('/paywall')}
+          >
+            <Plus size={13} color="#D97706" strokeWidth={2.5} />
+            <Text style={styles.upgradeBtnText}>Upgrade</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Monthly Usage & Circular Gauge Card */}
+        <View style={styles.usageCard}>
+          <View style={styles.usageInfo}>
+            <Text style={styles.usageLabel}>Monthly Usage</Text>
+            <View style={styles.usageNumbersRow}>
+              <Text style={styles.usageMainNumber}>1,250</Text>
+              <Text style={styles.usageTotalNumber}> / 2,000</Text>
+            </View>
+            <Text style={styles.creditsSub}>AI Credits</Text>
+          </View>
+
+          {/* 62% Ring Badge */}
+          <View style={styles.circularBadge}>
+            <Text style={styles.percentNumber}>62%</Text>
+          </View>
+        </View>
+
+        {/* Usage Bar Chart */}
+        <View style={styles.chartCard}>
+          <View style={styles.barsRow}>
+            {barData.map((b) => (
+              <View key={b.month} style={styles.barColumn}>
+                <View style={styles.barTrack}>
+                  <View style={[styles.barFill, { height: `${b.height}%` }]} />
                 </View>
-                <View style={styles.badgeUsed}>
-                  <Text style={styles.badgeUsedText}>{usedPercent}% Used</Text>
+                <Text style={styles.monthText}>{b.month}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Agent Breakdown List */}
+        <View style={styles.agentsCard}>
+          {agentBreakdown.map((agent, idx) => {
+            const Icon = agent.icon;
+            const isLast = idx === agentBreakdown.length - 1;
+            return (
+              <View key={agent.id} style={[styles.agentRow, !isLast && styles.agentRowBorder]}>
+                <View style={[styles.agentIconBox, { backgroundColor: agent.bgColor }]}>
+                  <Icon size={16} color={agent.color} />
                 </View>
+                <Text style={styles.agentName}>{agent.name}</Text>
+                <Text style={styles.agentCredits}>{agent.credits}</Text>
               </View>
-
-              <View style={styles.bigCreditRow}>
-                <Text style={styles.bigCreditUsed}>{usedCredits}</Text>
-                <Text style={styles.bigCreditTotal}>/ {totalCredits} credits</Text>
-              </View>
-
-              <View style={styles.progressBarBackground}>
-                <View style={[styles.progressBarFill, { width: `${Math.min(100, usedPercent)}%` }]} />
-              </View>
-
-              <Text style={styles.remainingText}>
-                {data?.credits_remaining || 0} credits remaining for supervisor reasoning & draft generation.
-              </Text>
-            </GlassCard>
-
-            {/* Usage by Agent */}
-            <GlassCard style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Consumption by Specialized Agent</Text>
-              <Text style={styles.sectionSubtitle}>Breakdown of credits consumed per agent</Text>
-
-              <View style={styles.agentList}>
-                {data?.credits_used_by_agent &&
-                  Object.entries(data.credits_used_by_agent).map(([agent, credits], idx) => {
-                    const pct = usedCredits > 0 ? Math.round((credits / usedCredits) * 100) : 0;
-                    return (
-                      <View key={idx} style={styles.agentRow}>
-                        <View style={styles.agentInfo}>
-                          <Text style={styles.agentName}>{agent}</Text>
-                          <Text style={styles.agentCredits}>{credits} credits ({pct}%)</Text>
-                        </View>
-                        <View style={styles.agentTrack}>
-                          <View style={[styles.agentBar, { width: `${Math.min(100, pct)}%` }]} />
-                        </View>
-                      </View>
-                    );
-                  })}
-              </View>
-            </GlassCard>
-
-            {/* Daily Consumption Trend */}
-            <GlassCard style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Daily Activity Trend</Text>
-              <Text style={styles.sectionSubtitle}>Credits spent per calendar day</Text>
-
-              {data?.daily_usage_trend && data.daily_usage_trend.length > 0 ? (
-                data.daily_usage_trend.map((day, i) => (
-                  <View key={i} style={styles.dailyRow}>
-                    <Text style={styles.dailyDate}>{day.date}</Text>
-                    <Text style={styles.dailyRequests}>{day.requests} requests</Text>
-                    <Text style={styles.dailyCredits}>+{day.credits} credits</Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.emptyText}>No recent query activity.</Text>
-              )}
-            </GlassCard>
-          </>
-        )}
+            );
+          })}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -168,187 +153,188 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderColor: '#E2E8F0',
   },
-  backButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
+  backBtn: {
+    padding: 6,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    paddingBottom: 60,
+    gap: 14,
+  },
+  planCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  planLabel: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  planName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#059669',
+    marginTop: 2,
   },
   upgradeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
     gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   upgradeBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
+    fontWeight: '800',
+    color: '#D97706',
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  loadingContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#64748B',
-  },
-  meterCard: {
-    padding: 18,
-    borderRadius: 16,
-    marginBottom: 16,
-  },
-  meterHeader: {
+  usageCard: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  meterTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
+  usageInfo: {
+    flex: 1,
   },
-  meterSubtitle: {
+  usageLabel: {
     fontSize: 12,
     color: '#64748B',
-    marginTop: 2,
+    fontWeight: '600',
   },
-  badgeUsed: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  badgeUsedText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  bigCreditRow: {
+  usageNumbersRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginVertical: 14,
-    gap: 6,
+    marginTop: 4,
   },
-  bigCreditUsed: {
-    fontSize: 32,
+  usageMainNumber: {
+    fontSize: 24,
     fontWeight: '900',
     color: '#0F172A',
+    letterSpacing: -0.5,
   },
-  bigCreditTotal: {
-    fontSize: 16,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  progressBarBackground: {
-    height: 10,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#059669',
-    borderRadius: 5,
-  },
-  remainingText: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 10,
-  },
-  sectionCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 14,
-  },
-  sectionTitle: {
+  usageTotalNumber: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#94A3B8',
   },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginBottom: 12,
+  creditsSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
   },
-  agentList: {
-    gap: 12,
+  circularBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 4,
+    borderColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ECFDF5',
   },
-  agentRow: {
-    gap: 4,
+  percentNumber: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#059669',
   },
-  agentInfo: {
+  chartCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  barsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 120,
+    paddingTop: 10,
+  },
+  barColumn: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  barTrack: {
+    width: 22,
+    height: 85,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 6,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFill: {
+    width: '100%',
+    backgroundColor: '#10B981',
+    borderRadius: 6,
+  },
+  monthText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  agentsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  agentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  agentRowBorder: {
+    borderBottomWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  agentIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   agentName: {
+    flex: 1,
     fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
+    fontWeight: '700',
+    color: '#0F172A',
   },
   agentCredits: {
     fontSize: 12,
     color: '#64748B',
-  },
-  agentTrack: {
-    height: 6,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  agentBar: {
-    height: '100%',
-    backgroundColor: '#3B82F6',
-    borderRadius: 3,
-  },
-  dailyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  dailyDate: {
-    fontSize: 13,
     fontWeight: '600',
-    color: '#0F172A',
-  },
-  dailyRequests: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  dailyCredits: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  emptyText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    textAlign: 'center',
-    paddingVertical: 14,
   },
 });

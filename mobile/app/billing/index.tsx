@@ -1,246 +1,127 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import {
   ArrowLeft,
   Crown,
-  Sparkles,
-  Zap,
-  Clock,
   Receipt,
-  BarChart3,
+  CreditCard,
+  Edit3,
+  XCircle,
+  Sparkles,
   ChevronRight,
   ShieldCheck,
-  CheckCircle2,
 } from 'lucide-react-native';
-import { GlassCard } from '../../src/components/GlassCard';
-import { Colors, Shadows } from '../../src/constants/theme';
-import { useAuthStore } from '../../src/store/authStore';
-import {
-  billingService,
-  SubscriptionData,
-  UsageSummary,
-} from '../../src/services/billingService';
+import { Colors } from '../../src/constants/theme';
 
-export default function BillingHubScreen() {
-  const { currentBusiness } = useAuthStore();
-  const businessId = currentBusiness?.id || '00000000-0000-0000-0000-000000000002';
-
-  const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
-  const [usage, setUsage] = useState<UsageSummary | null>(null);
-  const [restoring, setRestoring] = useState(false);
-
-  const loadData = async () => {
-    try {
-      const [subData, usageData] = await Promise.all([
-        billingService.getSubscription(businessId),
-        billingService.getUsage(businessId),
-      ]);
-      setSubscription(subData);
-      setUsage(usageData);
-    } catch (e) {
-      console.warn('Error loading billing hub data:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [businessId]);
-
-  const handleRestore = async () => {
-    setRestoring(true);
-    try {
-      const res = await billingService.restorePurchases(businessId);
-      Alert.alert('Purchases Restored', res.message || 'Subscription entitlements synchronized.');
-      loadData();
-    } catch (e: any) {
-      Alert.alert('Restore Notice', e.message || 'No active purchases found to restore.');
-    } finally {
-      setRestoring(false);
-    }
-  };
-
-  if (loading || !subscription || !usage) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loaderCenter}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const renewalDate = subscription.current_period_end
-    ? new Date(subscription.current_period_end).toLocaleDateString([], {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    : 'Oct 28, 2026';
+export default function BillingSubscriptionScreen() {
+  const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={Colors.text} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <ArrowLeft size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.title}>Subscription &amp; Billing</Text>
-        <View style={{ width: 38 }} />
+        <Text style={styles.headerTitle}>Subscription</Text>
+        <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {/* Active Plan Card */}
-        <GlassCard style={styles.planCard}>
-          <View style={styles.planHeader}>
-            <View style={styles.planLeft}>
-              <View style={styles.crownWrap}>
-                <Crown size={20} color="#F59E0B" />
-              </View>
-              <View>
-                <Text style={styles.planTierName}>
-                  {subscription.tier.toUpperCase()} PLAN
-                </Text>
-                <Text style={styles.planStatusText}>
-                  ● {subscription.status.toUpperCase()}
-                </Text>
-              </View>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Main Subscription Card */}
+        <View style={styles.subscriptionCard}>
+          <View style={styles.planTopRow}>
+            <View style={styles.crownBox}>
+              <Crown size={22} color="#F59E0B" />
             </View>
-            <TouchableOpacity
-              style={styles.changePlanBtn}
-              onPress={() => router.push('/paywall' as any)}
-            >
-              <Text style={styles.changePlanText}>Change Plan</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.planInfoRow}>
-            <View>
-              <Text style={styles.infoLabel}>Next Billing Date</Text>
-              <Text style={styles.infoValue}>{renewalDate}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.planName}>Business Plan</Text>
+              <Text style={styles.planPrice}>
+                ₹1,499 <Text style={styles.periodText}>/ month</Text>
+              </Text>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.infoLabel}>Billing Provider</Text>
-              <Text style={styles.infoValue}>RevenueCat / Apple</Text>
+            <View style={styles.activePill}>
+              <Text style={styles.activePillText}>+ Active</Text>
             </View>
           </View>
-        </GlassCard>
 
-        {/* Usage Glance Card */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>USAGE &amp; LIMITS</Text>
-          <TouchableOpacity onPress={() => router.push('/billing/usage' as any)}>
-            <Text style={styles.seeAllText}>View Details &gt;</Text>
+          <Text style={styles.nextBillingText}>Next billing: Mar 14, 2026</Text>
+
+          <TouchableOpacity
+            style={styles.manageBtn}
+            onPress={() => router.push('/paywall')}
+          >
+            <Text style={styles.manageBtnText}>Manage Subscription</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.88}
-          onPress={() => router.push('/billing/usage' as any)}
-        >
-          <GlassCard style={styles.usageCard}>
-            {/* AI Credits Meter */}
-            <View style={styles.meterHeader}>
-              <View style={styles.meterTitleRow}>
-                <Sparkles size={14} color={Colors.primary} />
-                <Text style={styles.meterTitle}>AI Credits</Text>
-              </View>
-              <Text style={styles.meterCount}>
-                {usage.ai_credits_used} / {usage.ai_credits_total} used
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${Math.min(100, usage.ai_credits_percent)}%` },
-                ]}
-              />
-            </View>
-
-            {/* Automations Meter */}
-            <View style={[styles.meterHeader, { marginTop: 14 }]}>
-              <View style={styles.meterTitleRow}>
-                <Zap size={14} color="#059669" />
-                <Text style={styles.meterTitle}>Active Automations</Text>
-              </View>
-              <Text style={styles.meterCount}>
-                {usage.automations_active} / {usage.automations_limit} active
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.min(100, usage.automations_percent)}%`,
-                    backgroundColor: '#059669',
-                  },
-                ]}
-              />
-            </View>
-          </GlassCard>
-        </TouchableOpacity>
-
-        {/* Quick Navigation Rows */}
-        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>BILLING MANAGEMENT</Text>
-
-        <GlassCard style={styles.menuGroup}>
+        {/* Options List */}
+        <View style={styles.menuCard}>
           <TouchableOpacity
-            style={styles.menuItem}
+            style={styles.menuRow}
             activeOpacity={0.7}
-            onPress={() => router.push('/billing/history' as any)}
+            onPress={() => router.push('/billing/history')}
           >
-            <View style={styles.menuLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: '#EEF2FF' }]}>
-                <Receipt size={16} color="#4F46E5" />
-              </View>
-              <View>
-                <Text style={styles.menuTitle}>Invoices &amp; Receipts</Text>
-                <Text style={styles.menuSub}>View billing history and payment records</Text>
-              </View>
-            </View>
-            <ChevronRight size={16} color={Colors.textMuted} />
+            <Receipt size={18} color="#64748B" />
+            <Text style={styles.menuTitle}>Billing History</Text>
+            <ChevronRight size={18} color="#94A3B8" />
           </TouchableOpacity>
 
-          <View style={styles.divider} />
+          <TouchableOpacity
+            style={styles.menuRow}
+            activeOpacity={0.7}
+            onPress={() => Alert.alert('Payment Method', 'Primary card: •••• 4242 (Visa)')}
+          >
+            <CreditCard size={18} color="#64748B" />
+            <Text style={styles.menuTitle}>Payment Method</Text>
+            <ChevronRight size={18} color="#94A3B8" />
+          </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.menuItem}
+            style={styles.menuRow}
             activeOpacity={0.7}
-            onPress={handleRestore}
-            disabled={restoring}
+            onPress={() => router.push('/paywall')}
           >
-            <View style={styles.menuLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: '#ECFDF5' }]}>
-                <ShieldCheck size={16} color="#10B981" />
-              </View>
-              <View>
-                <Text style={styles.menuTitle}>Restore Purchases</Text>
-                <Text style={styles.menuSub}>Sync entitlements from App Store</Text>
-              </View>
-            </View>
-            {restoring ? (
-              <ActivityIndicator size="small" color={Colors.primary} />
-            ) : (
-              <ChevronRight size={16} color={Colors.textMuted} />
-            )}
+            <Edit3 size={18} color="#64748B" />
+            <Text style={styles.menuTitle}>Update Plan</Text>
+            <ChevronRight size={18} color="#94A3B8" />
           </TouchableOpacity>
-        </GlassCard>
+
+          <TouchableOpacity
+            style={[styles.menuRow, { borderBottomWidth: 0 }]}
+            activeOpacity={0.7}
+            onPress={() =>
+              Alert.alert('Cancel Subscription', 'Are you sure you want to cancel? Your access remains active until Mar 14, 2026.', [
+                { text: 'Keep Plan', style: 'cancel' },
+                { text: 'Cancel Subscription', style: 'destructive' },
+              ])
+            }
+          >
+            <XCircle size={18} color="#DC2626" />
+            <Text style={[styles.menuTitle, { color: '#DC2626' }]}>Cancel Subscription</Text>
+            <ChevronRight size={18} color="#94A3B8" />
+          </TouchableOpacity>
+        </View>
+
+        {/* AI Credits Reset Notice Box */}
+        <View style={styles.noticeBox}>
+          <View style={styles.noticeIconWrap}>
+            <Sparkles size={16} color="#4F46E5" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.noticeTitle}>AI Credits Reset</Text>
+            <Text style={styles.noticeDesc}>Your AI credits will reset on Mar 14, 2026</Text>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -249,194 +130,151 @@ export default function BillingHubScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 12,
     paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderColor: '#E2E8F0',
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.card,
+    padding: 6,
   },
-  title: {
+  headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#0F172A',
+    letterSpacing: -0.3,
   },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
+  scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingVertical: 18,
+    paddingBottom: 60,
+    gap: 14,
   },
-  loaderCenter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  subscriptionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  planCard: {
-    padding: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
-    marginBottom: 20,
-    ...Shadows.glass,
-  },
-  planHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  planLeft: {
+  planTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  crownWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#FFFBEB',
+  crownBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  planTierName: {
+  planName: {
     fontSize: 16,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#0F172A',
   },
-  planStatusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#10B981',
-    marginTop: 2,
-  },
-  changePlanBtn: {
-    backgroundColor: Colors.primarySubtle,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  changePlanText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.borderLight,
-    marginVertical: 12,
-  },
-  planInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  infoLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  infoValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.text,
-    marginTop: 2,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 11,
+  planPrice: {
+    fontSize: 18,
     fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
+    color: '#059669',
+    marginTop: 2,
   },
-  seeAllText: {
+  periodText: {
     fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+  },
+  activePill: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.2)',
+  },
+  activePillText: {
+    fontSize: 11,
     fontWeight: '700',
-    color: Colors.primary,
+    color: '#059669',
   },
-  usageCard: {
-    padding: 16,
-    ...Shadows.card,
+  nextBillingText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 14,
   },
-  meterHeader: {
-    flexDirection: 'row',
+  manageBtn: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+    justifyContent: 'center',
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.25)',
   },
-  meterTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  meterTitle: {
+  manageBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#059669',
   },
-  meterCount: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: Colors.borderLight,
-    borderRadius: 3,
+  menuCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: 3,
-  },
-  menuGroup: {
-    paddingVertical: 4,
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    marginTop: 8,
-    ...Shadows.card,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  menuLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingVertical: 15,
     gap: 12,
-    flex: 1,
+    borderBottomWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  menuIcon: {
+  menuTitle: {
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  noticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(79, 70, 229, 0.2)',
+    gap: 12,
+  },
+  noticeIconWrap: {
     width: 34,
     height: 34,
     borderRadius: 10,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuTitle: {
-    fontSize: 14,
+  noticeTitle: {
+    fontSize: 13,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#3730A3',
   },
-  menuSub: {
-    fontSize: 11,
-    color: Colors.textMuted,
+  noticeDesc: {
+    fontSize: 11.5,
+    color: '#4F46E5',
     marginTop: 1,
   },
 });

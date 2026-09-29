@@ -5,29 +5,72 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
+  Image,
 } from 'react-native';
-import { Building, Check, Plus, X, Globe, DollarSign } from 'lucide-react-native';
-import { Colors, Shadows } from '../constants/theme';
-import { GlassCard } from './GlassCard';
-import { useAuthStore } from '../store/authStore';
 import { useRouter } from 'expo-router';
+import { X, Check, Plus, Building, Sparkles, Layers, Briefcase } from 'lucide-react-native';
+import { Colors } from '../constants/theme';
+import { useAuthStore } from '../store/authStore';
 
 interface WorkspaceSwitcherModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
+interface WorkspaceItem {
+  id: string;
+  name: string;
+  type: string;
+  color: string;
+  bgColor: string;
+  icon: any;
+}
+
+const defaultWorkspaces: WorkspaceItem[] = [
+  {
+    id: '00000000-0000-0000-0000-000000000002',
+    name: 'Acme Digital',
+    type: 'Agency • 5 members',
+    color: '#059669',
+    bgColor: '#ECFDF5',
+    icon: Sparkles,
+  },
+  {
+    id: 'ws-2',
+    name: 'Rahul Designs',
+    type: 'Freelancer • 1 member',
+    color: '#EA580C',
+    bgColor: '#FFF7ED',
+    icon: Layers,
+  },
+  {
+    id: 'ws-3',
+    name: 'XYZ Studio',
+    type: 'Creative Studio • 3 members',
+    color: '#4F46E5',
+    bgColor: '#EEF2FF',
+    icon: Building,
+  },
+  {
+    id: 'ws-4',
+    name: 'Pixel Marketing',
+    type: 'Agency • 2 members',
+    color: '#E11D48',
+    bgColor: '#FFF1F2',
+    icon: Briefcase,
+  },
+];
+
 export const WorkspaceSwitcherModal: React.FC<WorkspaceSwitcherModalProps> = ({
   visible,
   onClose,
 }) => {
   const router = useRouter();
-  const { businesses, currentBusiness, switchBusiness } = useAuthStore();
+  const { currentBusiness, businesses, switchBusiness, profile } = useAuthStore();
 
-  const handleSelectBusiness = (id: string) => {
-    switchBusiness(id);
+  const handleSelect = (bizId: string) => {
+    switchBusiness(bizId);
     onClose();
   };
 
@@ -36,6 +79,8 @@ export const WorkspaceSwitcherModal: React.FC<WorkspaceSwitcherModalProps> = ({
     router.push('/create-business');
   };
 
+  const activeId = currentBusiness?.id || '00000000-0000-0000-0000-000000000002';
+
   return (
     <Modal
       visible={visible}
@@ -43,86 +88,70 @@ export const WorkspaceSwitcherModal: React.FC<WorkspaceSwitcherModalProps> = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-              <GlassCard variant="elevated" style={styles.card}>
-                {/* Header */}
-                <View style={styles.header}>
-                  <View style={styles.headerTitleRow}>
-                    <Building size={20} color={Colors.primary} />
-                    <Text style={styles.title}>Switch Workspace</Text>
-                  </View>
-                  <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-                    <X size={18} color={Colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={styles.subtitle}>
-                  Select a business workspace to view associated pipeline, invoices & AI operations.
+      <View style={styles.overlay}>
+        <View style={styles.sheetContainer}>
+          {/* Top User Greeting Header */}
+          <View style={styles.header}>
+            <View style={styles.userRow}>
+              <Image
+                source={{ uri: profile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120' }}
+                style={styles.avatar}
+              />
+              <View>
+                <Text style={styles.greetingTitle}>
+                  Hi {profile?.full_name?.split(' ')[0] || 'Manav'} 👋
                 </Text>
-
-                {/* Business List */}
-                <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-                  {businesses.map((biz) => {
-                    const isSelected = currentBusiness?.id === biz.id;
-                    return (
-                      <TouchableOpacity
-                        key={biz.id}
-                        activeOpacity={0.7}
-                        onPress={() => handleSelectBusiness(biz.id)}
-                        style={[
-                          styles.bizItem,
-                          isSelected && styles.bizItemSelected,
-                        ]}
-                      >
-                        <View style={styles.bizItemLeft}>
-                          <View
-                            style={[
-                              styles.bizIconCircle,
-                              isSelected && { backgroundColor: Colors.primary },
-                            ]}
-                          >
-                            <Building
-                              size={16}
-                              color={isSelected ? '#FFFFFF' : Colors.primary}
-                            />
-                          </View>
-                          <View style={styles.bizInfo}>
-                            <Text style={styles.bizName}>{biz.name}</Text>
-                            <Text style={styles.bizDetails}>
-                              {biz.industry || 'Business'} • {biz.currency_symbol} ({biz.currency})
-                            </Text>
-                          </View>
-                        </View>
-
-                        {isSelected ? (
-                          <View style={styles.checkCircle}>
-                            <Check size={14} color="#FFFFFF" />
-                          </View>
-                        ) : null}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-
-                <View style={styles.divider} />
-
-                {/* Create New Business */}
-                <TouchableOpacity
-                  style={styles.createBtn}
-                  activeOpacity={0.8}
-                  onPress={handleCreateNew}
-                >
-                  <Plus size={18} color={Colors.primary} />
-                  <Text style={styles.createText}>Create New Workspace</Text>
-                </TouchableOpacity>
-              </GlassCard>
+                <Text style={styles.greetingSub}>Switch workspace</Text>
+              </View>
             </View>
-          </TouchableWithoutFeedback>
+
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+              <X size={20} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Workspace List */}
+          <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+            {defaultWorkspaces.map((item) => {
+              const isSelected = item.id === activeId || item.name === currentBusiness?.name;
+              const Icon = item.icon;
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.workspaceItem, isSelected && styles.workspaceItemSelected]}
+                  activeOpacity={0.7}
+                  onPress={() => handleSelect(item.id)}
+                >
+                  <View style={[styles.iconBox, { backgroundColor: item.bgColor }]}>
+                    <Icon size={20} color={item.color} />
+                  </View>
+
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.bizName}>{item.name}</Text>
+                    <Text style={styles.bizType}>{item.type}</Text>
+                  </View>
+
+                  {isSelected && (
+                    <View style={styles.checkCircle}>
+                      <Check size={14} color="#FFFFFF" strokeWidth={2.5} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* Create New Business Button */}
+          <TouchableOpacity
+            style={styles.createBtn}
+            onPress={handleCreateNew}
+            activeOpacity={0.8}
+          >
+            <Plus size={16} color="#059669" strokeWidth={2.5} />
+            <Text style={styles.createBtnText}>Create New Business</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableWithoutFeedback>
+      </View>
     </Modal>
   );
 };
@@ -133,113 +162,112 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 420,
-  },
-  card: {
     padding: 20,
-    maxHeight: 520,
-    ...Shadows.glass,
+  },
+  sheetContainer: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  headerTitleRow: {
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  title: {
-    fontSize: 18,
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  greetingTitle: {
+    fontSize: 14.5,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#0F172A',
+  },
+  greetingSub: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginTop: 1,
   },
   closeBtn: {
-    padding: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 18,
+    padding: 6,
   },
   list: {
     maxHeight: 280,
+    marginVertical: 12,
   },
-  bizItem: {
+  workspaceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    padding: 12,
     borderRadius: 14,
-    marginBottom: 8,
-    backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  bizItemSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primarySubtle,
-  },
-  bizItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderColor: 'transparent',
+    marginBottom: 6,
     gap: 12,
-    flex: 1,
   },
-  bizIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primarySubtle,
+  workspaceItemSelected: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+  },
+  iconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bizInfo: {
+  itemInfo: {
     flex: 1,
   },
   bizName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#0F172A',
   },
-  bizDetails: {
-    fontSize: 12,
-    color: Colors.textMuted,
+  bizType: {
+    fontSize: 11.5,
+    color: '#64748B',
     marginTop: 2,
   },
   checkCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.borderLight,
-    marginVertical: 12,
   },
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: 'rgba(5, 150, 105, 0.25)',
+    borderRadius: 14,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: Colors.primarySubtle,
+    marginTop: 6,
   },
-  createText: {
-    fontSize: 14,
+  createBtnText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: Colors.primary,
+    color: '#059669',
   },
 });

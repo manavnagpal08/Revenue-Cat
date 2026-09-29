@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,193 +15,169 @@ import {
   Calendar,
   MessageCircle,
   Globe,
-  CheckCircle2,
-  AlertCircle,
-  ChevronRight,
-  ExternalLink,
   Sparkles,
+  ChevronRight,
+  Plus,
+  Layers,
 } from 'lucide-react-native';
-import { Colors, Shadows } from '../../src/constants/theme';
-import { GlassCard } from '../../src/components/GlassCard';
-import { GlassButton } from '../../src/components/GlassButton';
-import { integrationService, IntegrationItem } from '../../src/services/integrationService';
-import { useAuthStore } from '../../src/store/authStore';
+import { Colors } from '../../src/constants/theme';
+
+interface ToolItem {
+  id: string;
+  name: string;
+  icon: any;
+  iconColor: string;
+  iconBg: string;
+  status: 'Connected' | 'Not Connected' | 'Coming Soon';
+  subtext: string;
+  isManage?: boolean;
+}
+
+const mainTools: ToolItem[] = [
+  {
+    id: 'gmail',
+    name: 'Gmail',
+    icon: Mail,
+    iconColor: '#EA4335',
+    iconBg: '#FEE2E2',
+    status: 'Connected',
+    subtext: 'rahul@acmestudio.com',
+    isManage: true,
+  },
+  {
+    id: 'calendar',
+    name: 'Google Calendar',
+    icon: Calendar,
+    iconColor: '#2563EB',
+    iconBg: '#DBEAFE',
+    status: 'Connected',
+    subtext: '3 calendars synced',
+    isManage: true,
+  },
+  {
+    id: 'whatsapp',
+    name: 'WhatsApp Business',
+    icon: MessageCircle,
+    iconColor: '#059669',
+    iconBg: '#ECFDF5',
+    status: 'Not Connected',
+    subtext: 'Connect to start messaging',
+    isManage: false,
+  },
+  {
+    id: 'website',
+    name: 'Website / Leads',
+    icon: Globe,
+    iconColor: '#4F46E5',
+    iconBg: '#EEF2FF',
+    status: 'Connected',
+    subtext: 'Receiving leads via webhook',
+    isManage: true,
+  },
+];
+
+const moreTools = [
+  { id: 'slack', name: 'Slack', color: '#E11D48' },
+  { id: 'zapier', name: 'Zapier', color: '#F97316' },
+  { id: 'notion', name: 'Notion', color: '#0F172A' },
+];
 
 export default function IntegrationsHubScreen() {
   const router = useRouter();
-  const { currentBusiness, profile } = useAuthStore();
-
-  const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadData = async () => {
-    if (!currentBusiness?.id) return;
-    try {
-      const list = await integrationService.listIntegrations(currentBusiness.id);
-      setIntegrations(list);
-    } catch (err) {
-      console.warn('Error loading integrations:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [currentBusiness?.id]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadData();
-  };
-
-  const getProviderIcon = (provider: string) => {
-    switch (provider) {
-      case 'gmail':
-        return <Mail size={22} color="#EA4335" />;
-      case 'google_calendar':
-        return <Calendar size={22} color="#4285F4" />;
-      case 'whatsapp':
-        return <MessageCircle size={22} color="#25D366" />;
-      case 'website_leads':
-        return <Globe size={22} color={Colors.primary} />;
-      default:
-        return <Globe size={22} color={Colors.primary} />;
-    }
-  };
-
-  const getStatusBadge = (status: string, accountEmail?: string) => {
-    if (status === 'connected') {
-      return (
-        <View style={[styles.statusBadge, { backgroundColor: Colors.successBg }]}>
-          <CheckCircle2 size={10} color={Colors.success} />
-          <Text style={[styles.statusBadgeText, { color: Colors.success }]}>
-            {accountEmail || 'Connected'}
-          </Text>
-        </View>
-      );
-    } else if (status === 'configuration_required') {
-      return (
-        <View style={[styles.statusBadge, { backgroundColor: '#FEF3C7' }]}>
-          <AlertCircle size={10} color={Colors.warning} />
-          <Text style={[styles.statusBadgeText, { color: Colors.warning }]}>
-            Config Required
-          </Text>
-        </View>
-      );
-    }
-    return (
-      <View style={[styles.statusBadge, { backgroundColor: '#F1F5F9' }]}>
-        <Text style={[styles.statusBadgeText, { color: Colors.textMuted }]}>
-          Not Connected
-        </Text>
-      </View>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={Colors.text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 12 }}>
+        <View style={styles.headerTitleRow}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <ArrowLeft size={20} color="#0F172A" />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>Integrations</Text>
-          <Text style={styles.headerSub}>Connect your tools to streamline business</Text>
         </View>
+
+        <TouchableOpacity
+          style={styles.activityBtn}
+          onPress={() => router.push('/integrations/activity' as any)}
+        >
+          <Text style={styles.activityBtnText}>Activity</Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
-        }
-      >
-        {/* Hub Banner */}
-        <GlassCard variant="elevated" style={styles.hubBanner}>
-          <View style={styles.hubBannerLeft}>
-            <View style={styles.hubBadge}>
-              <Sparkles size={14} color={Colors.primary} />
-              <Text style={styles.hubBadgeText}>CONNECTED WORKSPACE</Text>
-            </View>
-            <Text style={styles.hubBannerTitle}>AI Operations Engine</Text>
-            <Text style={styles.hubBannerSub}>
-              SoloCEO AI reads emails, checks your calendar, and captures incoming leads automatically.
-            </Text>
-          </View>
-        </GlassCard>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionSubtitle}>
+          Connect your tools to streamline your business
+        </Text>
 
-        {/* Integrations List */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Active Integrations</Text>
-        </View>
-
-        {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={Colors.primary} />
-          </View>
-        ) : (
-          integrations.map((item) => {
-            const isConnected = item.status === 'connected';
+        {/* Main Tools Cards */}
+        <View style={styles.toolsList}>
+          {mainTools.map((tool) => {
+            const Icon = tool.icon;
+            const isConnected = tool.status === 'Connected';
             return (
-              <GlassCard key={item.id} style={styles.integrationCard}>
-                <View style={styles.cardTopRow}>
-                  <View style={styles.iconContainer}>{getProviderIcon(item.provider)}</View>
-
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.providerName}>{item.display_name}</Text>
-                    <Text style={styles.providerDesc} numberOfLines={1}>
-                      {item.description}
-                    </Text>
-                    <View style={{ marginTop: 4 }}>
-                      {getStatusBadge(item.status, item.account_email)}
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[styles.actionBtn, isConnected && styles.manageBtn]}
-                    onPress={() => router.push(`/integrations/${item.provider}` as any)}
-                  >
-                    <Text
-                      style={[styles.actionBtnText, isConnected && styles.manageBtnText]}
-                    >
-                      {isConnected ? 'Manage' : 'Connect'}
-                    </Text>
-                  </TouchableOpacity>
+              <View key={tool.id} style={styles.toolCard}>
+                <View style={[styles.iconBox, { backgroundColor: tool.iconBg }]}>
+                  <Icon size={20} color={tool.iconColor} />
                 </View>
-              </GlassCard>
-            );
-          })
-        )}
 
-        {/* Coming Soon Section */}
-        <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-          <Text style={styles.sectionTitle}>More Integrations</Text>
+                <View style={styles.toolInfo}>
+                  <Text style={styles.toolName}>{tool.name}</Text>
+                  <View style={styles.statusRow}>
+                    <View
+                      style={[
+                        styles.statusDot,
+                        { backgroundColor: isConnected ? '#059669' : '#94A3B8' },
+                      ]}
+                    />
+                    <Text style={styles.toolSubtext}>{tool.subtext}</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.actionBtn,
+                    isConnected ? styles.actionBtnManage : styles.actionBtnConnect,
+                  ]}
+                  onPress={() => router.push(`/integrations/${tool.id}`)}
+                >
+                  <Text
+                    style={[
+                      styles.actionBtnText,
+                      isConnected ? styles.actionBtnTextManage : styles.actionBtnTextConnect,
+                    ]}
+                  >
+                    {isConnected ? 'Manage' : 'Connect'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
 
-        <GlassCard style={styles.moreIntegrationsCard}>
-          <View style={styles.moreRow}>
-            <View style={styles.morePill}>
-              <Text style={styles.morePillText}># Slack</Text>
-            </View>
-            <View style={styles.morePill}>
-              <Text style={styles.morePillText}>⚡ Zapier</Text>
-            </View>
-            <View style={styles.morePill}>
-              <Text style={styles.morePillText}>📝 Notion</Text>
-            </View>
-            <View style={styles.morePill}>
-              <Text style={styles.morePillText}>🟠 HubSpot</Text>
-            </View>
-          </View>
-          <Text style={styles.moreSubText}>
-            CRM & team collaboration sync scheduled for upcoming updates.
-          </Text>
-        </GlassCard>
+        {/* More Integrations Section */}
+        <Text style={styles.moreHeader}>More Integrations</Text>
+        <View style={styles.moreToolsCard}>
+          {moreTools.map((m, idx) => {
+            const isLast = idx === moreTools.length - 1;
+            return (
+              <TouchableOpacity
+                key={m.id}
+                style={[styles.moreToolRow, !isLast && styles.moreToolRowBorder]}
+                activeOpacity={0.7}
+                onPress={() => Alert.alert(m.name, `${m.name} integration is coming soon in Q4!`)}
+              >
+                <View style={styles.moreIconBox}>
+                  <Layers size={16} color={m.color} />
+                </View>
+                <Text style={styles.moreToolName}>{m.name}</Text>
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>Coming Soon</Text>
+                </View>
+                <ChevronRight size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -212,175 +186,166 @@ export default function IntegrationsHubScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 14,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderColor: '#E2E8F0',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.glass,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
+    padding: 6,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#0F172A',
+    letterSpacing: -0.3,
   },
-  headerSub: {
+  activityBtn: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  activityBtnText: {
     fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 1,
+    fontWeight: '700',
+    color: '#059669',
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 50,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 60,
   },
-  hubBanner: {
-    padding: 18,
-    marginBottom: 20,
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 16,
+  },
+  toolsList: {
+    gap: 12,
+  },
+  toolCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.primary,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 12,
   },
-  hubBannerLeft: {
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolInfo: {
     flex: 1,
   },
-  hubBadge: {
+  toolName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 6,
+    marginTop: 3,
   },
-  hubBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.6,
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  hubBannerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  hubBannerSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-  },
-  sectionHeader: {
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  loadingBox: {
-    padding: 30,
-    alignItems: 'center',
-  },
-  integrationCard: {
-    padding: 14,
-    marginBottom: 10,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.card,
-  },
-  providerName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  providerDesc: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 1,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
+  toolSubtext: {
+    fontSize: 11.5,
+    color: '#64748B',
   },
   actionBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 10,
-    ...Shadows.glow,
+  },
+  actionBtnManage: {
+    backgroundColor: '#F1F5F9',
+  },
+  actionBtnConnect: {
+    backgroundColor: '#059669',
   },
   actionBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
+  },
+  actionBtnTextManage: {
+    color: '#475569',
+  },
+  actionBtnTextConnect: {
     color: '#FFFFFF',
   },
-  manageBtn: {
-    backgroundColor: Colors.glass,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  manageBtnText: {
-    color: Colors.text,
-  },
-  moreIntegrationsCard: {
-    padding: 16,
-  },
-  moreRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  moreHeader: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 24,
     marginBottom: 10,
   },
-  morePill: {
-    backgroundColor: Colors.glass,
+  moreToolsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
   },
-  morePillText: {
-    fontSize: 12,
+  moreToolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  moreToolRowBorder: {
+    borderBottomWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  moreIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreToolName: {
+    flex: 1,
+    fontSize: 13.5,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: '#0F172A',
   },
-  moreSubText: {
-    fontSize: 11,
-    color: Colors.textMuted,
+  comingSoonBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginRight: 4,
+  },
+  comingSoonText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#64748B',
   },
 });
