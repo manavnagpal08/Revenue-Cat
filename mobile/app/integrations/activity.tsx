@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,72 +19,90 @@ import {
   ChevronDown,
   CheckCircle2,
   XCircle,
+  Activity,
+  Layers,
 } from 'lucide-react-native';
 import { Colors } from '../../src/constants/theme';
+import { supabase } from '../../src/lib/supabase';
+import { useAuthStore } from '../../src/store/authStore';
 
 interface ActivityItem {
   id: string;
-  provider: 'gmail' | 'calendar' | 'website' | 'whatsapp';
+  provider: 'gmail' | 'calendar' | 'website' | 'whatsapp' | 'system';
   title: string;
   description: string;
   time: string;
   status: 'Success' | 'Failed';
 }
 
-const mockActivity: ActivityItem[] = [
-  {
-    id: 'a1',
-    provider: 'gmail',
-    title: 'Email Sent',
-    description: 'Email sent to Acme Interiors',
-    time: '2h ago',
-    status: 'Success',
-  },
-  {
-    id: 'a2',
-    provider: 'calendar',
-    title: 'Meeting Created',
-    description: 'Project Discussion with Rahul Designs',
-    time: '4h ago',
-    status: 'Success',
-  },
-  {
-    id: 'a3',
-    provider: 'website',
-    title: 'New Website Lead',
-    description: 'Lead from contact form - Neha Kapoor',
-    time: '6h ago',
-    status: 'Success',
-  },
-  {
-    id: 'a4',
-    provider: 'gmail',
-    title: 'Email Sync',
-    description: 'Synced 12 new emails',
-    time: '1d ago',
-    status: 'Success',
-  },
-  {
-    id: 'a5',
-    provider: 'whatsapp',
-    title: 'WhatsApp Message',
-    description: 'Message sent to Karan Mehta',
-    time: '1d ago',
-    status: 'Failed',
-  },
-  {
-    id: 'a6',
-    provider: 'calendar',
-    title: 'Calendar Sync',
-    description: 'Synced 5 new events',
-    time: '1d ago',
-    status: 'Success',
-  },
-];
-
 export default function IntegrationActivityScreen() {
   const router = useRouter();
-  const [filter, setFilter] = useState('All Providers');
+  const { currentBusiness } = useAuthStore();
+  const [filter, setFilter] = useState<'All' | 'gmail' | 'calendar' | 'website' | 'whatsapp'>('All');
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchActivities = useCallback(async () => {
+    try {
+      if (!currentBusiness?.id) {
+        setActivities([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('lead_activities')
+        .select('*')
+        .eq('business_id', currentBusiness.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const mapped: ActivityItem[] = data.map((item: any) => {
+          let prov: ActivityItem['provider'] = 'system';
+          if (item.activity_type === 'email') prov = 'gmail';
+          else if (item.activity_type === 'meeting' || item.activity_type === 'calendar') prov = 'calendar';
+          else if (item.activity_type === 'whatsapp' || item.activity_type === 'call') prov = 'whatsapp';
+          else if (item.activity_type === 'website') prov = 'website';
+
+          return {
+            id: item.id,
+            provider: prov,
+            title: item.title || 'Activity Event',
+            description: item.description || 'Action processed successfully.',
+            time: item.created_at
+              ? new Date(item.created_at).toLocaleDateString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Recently',
+            status: 'Success',
+          };
+        });
+        setActivities(mapped);
+      } else {
+        setActivities([]);
+      }
+    } catch (e) {
+      console.warn('Error fetching activity log:', e);
+      setActivities([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [currentBusiness?.id]);
+
+  useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchActivities();
+  };
 
   const getProviderIcon = (provider: string) => {
     switch (provider) {
@@ -110,8 +130,19 @@ export default function IntegrationActivityScreen() {
             <MessageCircle size={16} color="#059669" />
           </View>
         );
+      default:
+        return (
+          <View style={[styles.iconWrap, { backgroundColor: '#F1F5F9' }]}>
+            <Layers size={16} color="#64748B" />
+          </View>
+        );
     }
   };
+
+  const filtered = activities.filter((a) => {
+    if (filter === 'All') return true;
+    return a.provider === filter;
+  });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -123,44 +154,80 @@ export default function IntegrationActivityScreen() {
           </TouchableOpacity>
           <View>
             <Text style={styles.headerTitle}>Integration Activity</Text>
-            <Text style={styles.headerSubtitle}>Track all integration operations.</Text>
+            <Text style={styles.headerSubtitle}>Track real-time event logs & triggers.</Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.providerDropdown}>
-          <Text style={styles.providerDropdownText}>{filter}</Text>
+        <TouchableOpacity
+          style={styles.providerDropdown}
+          onPress={() => {
+            const next = filter === 'All' ? 'gmail' : filter === 'gmail' ? 'calendar' : filter === 'calendar' ? 'whatsapp' : 'All';
+            setFilter(next as any);
+          }}
+        >
+          <Text style={styles.providerDropdownText}>{filter === 'All' ? 'All Providers' : filter.toUpperCase()}</Text>
           <ChevronDown size={12} color="#64748B" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {mockActivity.map((item) => {
-          const isSuccess = item.status === 'Success';
-          return (
-            <View key={item.id} style={styles.activityCard}>
-              {getProviderIcon(item.provider)}
+      {loading ? (
+        <View style={styles.loaderCenter}>
+          <ActivityIndicator size="large" color="#059669" />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />
+          }
+        >
+          {filtered.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconWrap}>
+                <Activity size={36} color="#059669" />
+              </View>
+              <Text style={styles.emptyTitle}>No Activity Recorded</Text>
+              <Text style={styles.emptySubtitle}>
+                Webhooks, sync tasks, and automation executions will stream here as they occur.
+              </Text>
+            </View>
+          ) : (
+            filtered.map((item) => {
+              const isSuccess = item.status === 'Success';
+              return (
+                <View key={item.id} style={styles.activityCard}>
+                  {getProviderIcon(item.provider)}
 
-              <View style={styles.cardDetails}>
-                <View style={styles.topRow}>
-                  <Text style={styles.activityTitle}>{item.title}</Text>
-                  <Text style={styles.timeText}>{item.time}</Text>
-                </View>
+                  <View style={styles.activityInfo}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.activityTitle}>{item.title}</Text>
+                      <View style={styles.statusRow}>
+                        {isSuccess ? (
+                          <CheckCircle2 size={13} color="#059669" />
+                        ) : (
+                          <XCircle size={13} color="#EF4444" />
+                        )}
+                        <Text
+                          style={[
+                            styles.statusText,
+                            { color: isSuccess ? '#059669' : '#EF4444' },
+                          ]}
+                        >
+                          {item.status}
+                        </Text>
+                      </View>
+                    </View>
 
-                <View style={styles.bottomRow}>
-                  <Text style={styles.activityDesc} numberOfLines={1}>
-                    {item.description}
-                  </Text>
-                  <View style={[styles.statusBadge, isSuccess ? styles.successBadge : styles.failedBadge]}>
-                    <Text style={[styles.statusText, isSuccess ? styles.successText : styles.failedText]}>
-                      {item.status}
-                    </Text>
+                    <Text style={styles.activityDesc}>{item.description}</Text>
+                    <Text style={styles.activityTime}>{item.time}</Text>
                   </View>
                 </View>
-              </View>
-            </View>
-          );
-        })}
-      </ScrollView>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -187,13 +254,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: {
-    padding: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#0F172A',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
     fontSize: 12,
@@ -203,29 +277,61 @@ const styles = StyleSheet.create({
   providerDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    gap: 6,
   },
   providerDropdownText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#475569',
+  },
+  loaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
+    padding: 20,
+    gap: 12,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 60,
-    gap: 10,
+  },
+  emptyIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 6,
+    letterSpacing: -0.3,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
   },
   activityCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 12,
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     gap: 12,
@@ -233,62 +339,43 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
   },
-  cardDetails: {
+  activityInfo: {
     flex: 1,
   },
-  topRow: {
+  titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 3,
+    alignItems: 'center',
+    marginBottom: 2,
   },
   activityTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#0F172A',
+    letterSpacing: -0.2,
   },
-  timeText: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  bottomRow: {
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   activityDesc: {
     fontSize: 12,
     color: '#64748B',
-    flex: 1,
+    lineHeight: 16,
+    marginBottom: 6,
   },
-  statusBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 1.5,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  successBadge: {
-    backgroundColor: '#ECFDF5',
-  },
-  successText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  failedBadge: {
-    backgroundColor: '#FEF2F2',
-  },
-  failedText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#DC2626',
+  activityTime: {
+    fontSize: 11,
+    color: '#94A3B8',
   },
 });

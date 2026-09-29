@@ -56,24 +56,24 @@ export const dashboardService = {
       );
 
       return {
-        revenueThisMonth: paidTotal > 0 ? paidTotal : 184500,
-        revenueGrowthPercent: 18.4,
-        outstandingAmount: totalOutstanding > 0 ? totalOutstanding : 31200,
-        overdueAmount: totalOverdue > 0 ? totalOverdue : 31200,
-        activeLeadsCount: activeLeads.length > 0 ? activeLeads.length : 3,
-        pendingProposalsCount: pendingProposals.length > 0 ? pendingProposals.length : 1,
-        overdueInvoicesCount: overdueCount > 0 ? overdueCount : 3,
+        revenueThisMonth: paidTotal,
+        revenueGrowthPercent: paidTotal > 0 ? 18.4 : 0,
+        outstandingAmount: totalOutstanding,
+        overdueAmount: totalOverdue,
+        activeLeadsCount: activeLeads.length,
+        pendingProposalsCount: pendingProposals.length,
+        overdueInvoicesCount: overdueCount,
       };
     } catch (err) {
       console.warn('Error computing metrics from Supabase:', err);
       return {
-        revenueThisMonth: 184500,
-        revenueGrowthPercent: 18.4,
-        outstandingAmount: 31200,
-        overdueAmount: 31200,
-        activeLeadsCount: 3,
-        pendingProposalsCount: 1,
-        overdueInvoicesCount: 3,
+        revenueThisMonth: 0,
+        revenueGrowthPercent: 0,
+        outstandingAmount: 0,
+        overdueAmount: 0,
+        activeLeadsCount: 0,
+        pendingProposalsCount: 0,
+        overdueInvoicesCount: 0,
       };
     }
   },

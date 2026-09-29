@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -191,9 +192,11 @@ export default function LoginScreen() {
           <View style={styles.container}>
             {/* Header Brand */}
             <View style={styles.brandHeader}>
-              <View style={styles.logoBadge}>
-                <Sparkles size={24} color="#FFFFFF" strokeWidth={2.4} />
-              </View>
+              <Image
+                source={require('../../assets/logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
               <Text style={styles.brandTitle}>SoloCEO</Text>
               <Text style={styles.brandSubtitle}>
                 AI Operations & Business Management
@@ -326,15 +329,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  logoBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     marginBottom: 8,
-    ...Shadows.glow,
   },
   brandTitle: {
     fontSize: 24,

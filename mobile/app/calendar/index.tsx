@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,8 +17,11 @@ import {
   Clock,
   Calendar as CalendarIcon,
   ChevronRight,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { Colors } from '../../src/constants/theme';
+import { supabase } from '../../src/lib/supabase';
+import { useAuthStore } from '../../src/store/authStore';
 
 interface MeetingItem {
   id: string;
@@ -24,51 +29,119 @@ interface MeetingItem {
   endTime: string;
   title: string;
   subtitle: string;
-  type: 'Video Call' | 'Google Meet';
+  type: string;
   isOutline?: boolean;
 }
 
-const days = [
-  { day: 'Mon', date: 15 },
-  { day: 'Tue', date: 16 },
-  { day: 'Wed', date: 17, isToday: true },
-  { day: 'Thu', date: 18 },
-  { day: 'Fri', date: 19 },
-  { day: 'Sat', date: 20 },
-  { day: 'Sun', date: 21 },
-];
-
-const mockMeetings: MeetingItem[] = [
-  {
-    id: 'm-1',
-    startTime: '10:00 AM',
-    endTime: '11:00 AM',
-    title: 'Acme Interiors',
-    subtitle: 'Project Discussion',
-    type: 'Video Call',
-    isOutline: true,
-  },
-  {
-    id: 'm-2',
-    startTime: '2:00 PM',
-    endTime: '3:00 PM',
-    title: 'Rahul Designs',
-    subtitle: 'Proposal Review',
-    type: 'Google Meet',
-  },
-  {
-    id: 'm-3',
-    startTime: '4:30 PM',
-    endTime: '5:00 PM',
-    title: 'Team Sync',
-    subtitle: 'Internal Meeting',
-    type: 'Google Meet',
-  },
-];
+interface DayItem {
+  day: string;
+  date: number;
+  fullDateStr: string;
+  isToday: boolean;
+}
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState(17);
+  const { currentBusiness } = useAuthStore();
+  const [days, setDays] = useState<DayItem[]>([]);
+  const [selectedDateStr, setSelectedDateStr] = useState<string>('');
+  const [meetings, setMeetings] = useState<MeetingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    // Generate current week dynamically
+    const now = new Date();
+    const currentDayOfWeek = now.getDay(); // 0 is Sun, 1 is Mon
+    const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+
+    const weekDays: DayItem[] = [];
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const isToday = d.toDateString() === now.toDateString();
+      const dateIso = d.toISOString().split('T')[0];
+      weekDays.push({
+        day: dayNames[i],
+        date: d.getDate(),
+        fullDateStr: dateIso,
+        isToday,
+      });
+      if (isToday) {
+        setSelectedDateStr(dateIso);
+      }
+    }
+
+    if (weekDays.length > 0 && !selectedDateStr) {
+      const todayItem = weekDays.find((w) => w.isToday) || weekDays[0];
+      setSelectedDateStr(todayItem.fullDateStr);
+    }
+    setDays(weekDays);
+  }, []);
+
+  const fetchMeetings = useCallback(async () => {
+    try {
+      if (!currentBusiness?.id) {
+        setMeetings([]);
+        return;
+      }
+
+      const { data: tasks, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('business_id', currentBusiness.id)
+        .order('due_date', { ascending: true });
+
+      if (error) throw error;
+
+      if (tasks && tasks.length > 0) {
+        const mapped: MeetingItem[] = tasks.map((t: any) => {
+          const due = t.due_date ? new Date(t.due_date) : new Date();
+          const start = due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const end = new Date(due.getTime() + 45 * 60000).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          return {
+            id: t.id,
+            startTime: start || '10:00 AM',
+            endTime: end || '10:45 AM',
+            title: t.title || 'Client Meeting',
+            subtitle: t.description || 'Project consultation',
+            type: t.priority === 'high' ? 'Google Meet' : 'Video Call',
+            isOutline: t.status === 'completed',
+          };
+        });
+        setMeetings(mapped);
+      } else {
+        setMeetings([]);
+      }
+    } catch (err) {
+      console.warn('Error fetching calendar events:', err);
+      setMeetings([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [currentBusiness?.id]);
+
+  useEffect(() => {
+    fetchMeetings();
+  }, [fetchMeetings]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchMeetings();
+  };
+
+  const selectedDayObj = days.find((d) => d.fullDateStr === selectedDateStr);
+  const displayDateHeader = selectedDayObj
+    ? `${selectedDayObj.isToday ? 'Today, ' : ''}${selectedDayObj.date} ${new Date(selectedDayObj.fullDateStr).toLocaleDateString([], { month: 'short', year: 'numeric' })}`
+    : 'Schedule';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -84,19 +157,19 @@ export default function CalendarScreen() {
           </View>
         </View>
         <View style={styles.badgeCircle}>
-          <Text style={styles.badgeCircleText}>8</Text>
+          <Text style={styles.badgeCircleText}>{meetings.length}</Text>
         </View>
       </View>
 
       {/* Horizontal Date Selector Strip */}
       <View style={styles.datesStrip}>
         {days.map((d) => {
-          const isSelected = selectedDate === d.date;
+          const isSelected = selectedDateStr === d.fullDateStr;
           return (
             <TouchableOpacity
-              key={d.date}
+              key={d.fullDateStr}
               style={[styles.datePill, isSelected && styles.datePillSelected]}
-              onPress={() => setSelectedDate(d.date)}
+              onPress={() => setSelectedDateStr(d.fullDateStr)}
             >
               <Text style={[styles.dayText, isSelected && styles.dayTextSelected]}>
                 {d.day}
@@ -111,44 +184,74 @@ export default function CalendarScreen() {
 
       {/* Date Header */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionDateText}>Today, {selectedDate} Sep 2026</Text>
+        <Text style={styles.sectionDateText}>{displayDateHeader}</Text>
       </View>
 
       {/* Meetings List */}
-      <ScrollView contentContainerStyle={styles.meetingsList} showsVerticalScrollIndicator={false}>
-        {mockMeetings.map((item) => (
-          <View key={item.id} style={styles.meetingCard}>
-            <View style={styles.timeColumn}>
-              <Text style={styles.startTimeText}>{item.startTime}</Text>
-              <Text style={styles.endTimeText}>{item.endTime}</Text>
-            </View>
-
-            <View style={styles.cardDivider} />
-
-            <View style={styles.detailsColumn}>
-              <Text style={styles.meetingTitle}>{item.title}</Text>
-              <Text style={styles.meetingSubtitle}>{item.subtitle}</Text>
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.actionPill,
-                item.isOutline ? styles.actionPillOutline : styles.actionPillFilled,
-              ]}
-              onPress={() => {}}
-            >
-              <Text
-                style={[
-                  styles.actionPillText,
-                  item.isOutline ? styles.actionPillTextOutline : styles.actionPillTextFilled,
-                ]}
-              >
-                {item.type}
+      {loading ? (
+        <View style={styles.loaderCenter}>
+          <ActivityIndicator size="large" color="#059669" />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.meetingsList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />
+          }
+        >
+          {meetings.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconWrap}>
+                <CalendarIcon size={36} color="#059669" />
+              </View>
+              <Text style={styles.emptyTitle}>No Meetings Scheduled</Text>
+              <Text style={styles.emptySubtitle}>
+                You have no scheduled calls or tasks for this date.
               </Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-      </ScrollView>
+              <TouchableOpacity
+                style={styles.emptyActionBtn}
+                onPress={() => router.push('/calendar/create')}
+              >
+                <Plus size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.emptyActionBtnText}>Schedule Meeting</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            meetings.map((item) => (
+              <View key={item.id} style={styles.meetingCard}>
+                <View style={styles.timeColumn}>
+                  <Text style={styles.startTimeText}>{item.startTime}</Text>
+                  <Text style={styles.endTimeText}>{item.endTime}</Text>
+                </View>
+
+                <View style={styles.cardDivider} />
+
+                <View style={styles.detailsColumn}>
+                  <Text style={styles.meetingTitle}>{item.title}</Text>
+                  <Text style={styles.meetingSubtitle}>{item.subtitle}</Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.actionPill,
+                    item.isOutline ? styles.actionPillOutline : styles.actionPillFilled,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.actionPillText,
+                      item.isOutline ? styles.actionPillTextOutline : styles.actionPillTextFilled,
+                    ]}
+                  >
+                    {item.type}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
 
       {/* Floating Action Button (+) */}
       <TouchableOpacity
@@ -184,11 +287,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: {
-    padding: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.4,
   },
@@ -258,10 +368,57 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0F172A',
   },
+  loaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   meetingsList: {
     paddingHorizontal: 20,
     paddingBottom: 100,
     gap: 12,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 6,
+    letterSpacing: -0.3,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  emptyActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#059669',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  emptyActionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   meetingCard: {
     flexDirection: 'row',
@@ -328,7 +485,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 90,
+    bottom: 30,
     right: 20,
     width: 52,
     height: 52,

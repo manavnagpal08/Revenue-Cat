@@ -6,6 +6,7 @@ import {
   Animated,
   Easing,
   Platform,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, ArrowRight } from 'lucide-react-native';
@@ -113,14 +114,11 @@ export const AnimatedSplashScreen: React.FC<AnimatedSplashScreenProps> = ({
             },
           ]}
         >
-          <LinearGradient
-            colors={['#059669', '#10B981']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.logoBadge}
-          >
-            <Sparkles size={34} color="#FFFFFF" strokeWidth={2.4} />
-          </LinearGradient>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </Animated.View>
 
         {/* Text Details */}
@@ -182,14 +180,10 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 8,
   },
-  logoBadge: {
-    width: 76,
-    height: 76,
+  logoImage: {
+    width: 90,
+    height: 90,
     borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   textContainer: {
     alignItems: 'center',

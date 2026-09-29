@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,12 +18,126 @@ import {
   FileText,
   DollarSign,
   TrendingUp,
+  Bell,
+  CheckCheck,
 } from 'lucide-react-native';
 import { Colors } from '../../src/constants/theme';
+import { supabase } from '../../src/lib/supabase';
+import { useAuthStore } from '../../src/store/authStore';
+
+interface NotificationItem {
+  id: string;
+  category: 'Leads' | 'Invoices' | 'Mentions' | 'General';
+  title: string;
+  description: string;
+  time: string;
+  isUnread?: boolean;
+}
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { currentBusiness } = useAuthStore();
   const [activeFilter, setActiveFilter] = useState<'All' | 'Leads' | 'Invoices' | 'Mentions'>('All');
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      if (!currentBusiness?.id) {
+        setNotifications([]);
+        return;
+      }
+
+      // Check if notifications table exists or fetch recent activities
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('business_id', currentBusiness.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const mapped: NotificationItem[] = data.map((n: any) => ({
+          id: n.id,
+          category: n.type === 'lead' ? 'Leads' : n.type === 'invoice' ? 'Invoices' : 'General',
+          title: n.title || 'Notification',
+          description: n.message || n.body || '',
+          time: n.created_at
+            ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : 'Recent',
+          isUnread: !n.is_read,
+        }));
+        setNotifications(mapped);
+      } else {
+        // Fallback: Check lead_activities as notification feed
+        const { data: acts } = await supabase
+          .from('lead_activities')
+          .select('*')
+          .eq('business_id', currentBusiness.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (acts && acts.length > 0) {
+          const mappedActs: NotificationItem[] = acts.map((a: any) => ({
+            id: a.id,
+            category: a.activity_type === 'email' ? 'Mentions' : 'Leads',
+            title: a.title || 'Activity Alert',
+            description: a.description || '',
+            time: a.created_at
+              ? new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : 'Recent',
+            isUnread: false,
+          }));
+          setNotifications(mappedActs);
+        } else {
+          setNotifications([]);
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching notifications:', err);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [currentBusiness?.id]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchNotifications();
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'Leads':
+        return (
+          <View style={[styles.iconWrap, { backgroundColor: '#ECFDF5' }]}>
+            <Globe size={18} color="#059669" />
+          </View>
+        );
+      case 'Invoices':
+        return (
+          <View style={[styles.iconWrap, { backgroundColor: '#FEE2E2' }]}>
+            <DollarSign size={18} color="#EF4444" />
+          </View>
+        );
+      default:
+        return (
+          <View style={[styles.iconWrap, { backgroundColor: '#DBEAFE' }]}>
+            <FileText size={18} color="#2563EB" />
+          </View>
+        );
+    }
+  };
+
+  const filtered = notifications.filter((n) => {
+    if (activeFilter === 'All') return true;
+    return n.category === activeFilter;
+  });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -31,7 +147,7 @@ export default function NotificationsScreen() {
           <ArrowLeft size={20} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <View style={{ width: 32 }} />
+        <View style={{ width: 36 }} />
       </View>
 
       {/* Filter Tabs */}
@@ -52,80 +168,45 @@ export default function NotificationsScreen() {
         })}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Today Section */}
-        <Text style={styles.sectionHeader}>Today</Text>
-
-        <TouchableOpacity style={styles.notificationCard} activeOpacity={0.75}>
-          <View style={[styles.iconWrap, { backgroundColor: '#ECFDF5' }]}>
-            <Globe size={18} color="#059669" />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.notifTitle}>New lead from website</Text>
-            <Text style={styles.notifDesc}>ABC Technologies</Text>
-          </View>
-          <View style={styles.timeWrap}>
-            <Text style={styles.timeText}>10:24 AM</Text>
-            <View style={styles.unreadDot} />
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.notificationCard} activeOpacity={0.75}>
-          <View style={[styles.iconWrap, { backgroundColor: '#FEE2E2' }]}>
-            <AlertCircle size={18} color="#EF4444" />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.notifTitle}>Invoice overdue</Text>
-            <Text style={styles.notifDesc}>INV-002 is 3 days overdue</Text>
-          </View>
-          <View style={styles.timeWrap}>
-            <Text style={styles.timeText}>9:12 AM</Text>
-            <View style={styles.unreadDot} />
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.notificationCard} activeOpacity={0.75}>
-          <View style={[styles.iconWrap, { backgroundColor: '#F3E8FF' }]}>
-            <Calendar size={18} color="#9333EA" />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.notifTitle}>Meeting reminder</Text>
-            <Text style={styles.notifDesc}>Client call with Pixel Studio</Text>
-          </View>
-          <View style={styles.timeWrap}>
-            <Text style={styles.timeText}>8:00 AM</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Yesterday Section */}
-        <Text style={[styles.sectionHeader, { marginTop: 18 }]}>Yesterday</Text>
-
-        <TouchableOpacity style={styles.notificationCard} activeOpacity={0.75}>
-          <View style={[styles.iconWrap, { backgroundColor: '#DBEAFE' }]}>
-            <FileText size={18} color="#2563EB" />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.notifTitle}>Proposal viewed</Text>
-            <Text style={styles.notifDesc}>XYZ Studio viewed your proposal</Text>
-          </View>
-          <View style={styles.timeWrap}>
-            <Text style={styles.timeText}>Yesterday</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.notificationCard} activeOpacity={0.75}>
-          <View style={[styles.iconWrap, { backgroundColor: '#ECFDF5' }]}>
-            <DollarSign size={18} color="#059669" />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.notifTitle}>Payment received</Text>
-            <Text style={styles.notifDesc}>₹45,000 from Acme Interiors</Text>
-          </View>
-          <View style={styles.timeWrap}>
-            <Text style={styles.timeText}>Yesterday</Text>
-          </View>
-        </TouchableOpacity>
-      </ScrollView>
+      {loading ? (
+        <View style={styles.loaderCenter}>
+          <ActivityIndicator size="large" color="#059669" />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#059669" />
+          }
+        >
+          {filtered.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconWrap}>
+                <Bell size={36} color="#059669" />
+              </View>
+              <Text style={styles.emptyTitle}>All Caught Up!</Text>
+              <Text style={styles.emptySubtitle}>
+                You have no unread notifications or alerts. New lead alerts, overdue invoice notices, and calendar reminders will pop up here.
+              </Text>
+            </View>
+          ) : (
+            filtered.map((item) => (
+              <TouchableOpacity key={item.id} style={styles.notificationCard} activeOpacity={0.75}>
+                {getCategoryIcon(item.category)}
+                <View style={styles.cardInfo}>
+                  <Text style={styles.notifTitle}>{item.title}</Text>
+                  <Text style={styles.notifDesc}>{item.description}</Text>
+                </View>
+                <View style={styles.timeWrap}>
+                  <Text style={styles.timeText}>{item.time}</Text>
+                  {item.isUnread ? <View style={styles.unreadDot} /> : null}
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -147,11 +228,18 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   backBtn: {
-    padding: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.3,
   },
@@ -182,17 +270,45 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
+  loaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   scrollContent: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: 60,
     gap: 10,
   },
-  sectionHeader: {
-    fontSize: 12.5,
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 17,
     fontWeight: '700',
     color: '#0F172A',
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: -0.3,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
   },
   notificationCard: {
     flexDirection: 'row',
