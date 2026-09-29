@@ -60,6 +60,21 @@ export const authService = {
   },
 
   /**
+   * 1-Click Sign in / Sign up with Google.
+   */
+  async signInWithGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'soloceo://auth/callback',
+      },
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
    * Signs out current user session.
    */
   async signOut() {
