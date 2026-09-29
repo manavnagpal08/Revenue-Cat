@@ -25,13 +25,13 @@ export const StatCard: React.FC<StatCardProps> = ({
   const getAccentConfig = () => {
     switch (variant) {
       case 'revenue':
-        return { color: Colors.primary, bg: Colors.primarySubtle, border: 'rgba(16, 185, 129, 0.2)' };
+        return { color: Colors.primary, bg: Colors.primarySubtle, border: 'rgba(16, 185, 129, 0.18)' };
       case 'warning':
-        return { color: Colors.warning, bg: Colors.warningBg, border: 'rgba(245, 158, 11, 0.2)' };
+        return { color: Colors.warning, bg: Colors.warningBg, border: 'rgba(245, 158, 11, 0.18)' };
       case 'info':
-        return { color: Colors.info, bg: Colors.infoBg, border: 'rgba(59, 130, 246, 0.2)' };
+        return { color: Colors.info, bg: Colors.infoBg, border: 'rgba(59, 130, 246, 0.18)' };
       case 'purple':
-        return { color: Colors.purple, bg: Colors.purpleBg, border: 'rgba(139, 92, 246, 0.2)' };
+        return { color: Colors.purple, bg: Colors.purpleBg, border: 'rgba(139, 92, 246, 0.18)' };
       default:
         return { color: Colors.textSecondary, bg: Colors.backgroundAlt, border: Colors.borderLight };
     }
@@ -71,13 +71,16 @@ export const StatCard: React.FC<StatCardProps> = ({
           <View
             style={[
               styles.badge,
-              { backgroundColor: changePercent >= 0 ? Colors.successBg : Colors.dangerBg },
+              {
+                backgroundColor: changePercent >= 0 ? '#ECFDF5' : '#FEF2F2',
+                borderColor: changePercent >= 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)',
+              },
             ]}
           >
             <Text
               style={[
                 styles.badgeText,
-                { color: changePercent >= 0 ? Colors.primaryDark : Colors.danger },
+                { color: changePercent >= 0 ? '#047857' : '#DC2626' },
               ]}
             >
               {changePercent >= 0 ? `+${changePercent}%` : `${changePercent}%`}
@@ -92,37 +95,41 @@ export const StatCard: React.FC<StatCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    minWidth: 145,
-    margin: 4,
-    padding: 16,
-    borderRadius: 20,
+    minWidth: 140,
+    margin: 3,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    ...Shadows.sm,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   title: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    color: Colors.textSecondary,
+    color: '#64748B',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
   iconContainer: {
-    padding: 7,
-    borderRadius: 12,
+    padding: 6,
+    borderRadius: 10,
     borderWidth: 1,
   },
   valueRow: {
     marginBottom: 4,
   },
   valueText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    color: Colors.text,
-    letterSpacing: -0.6,
+    color: '#0F172A',
+    letterSpacing: -0.5,
   },
   bottomRow: {
     flexDirection: 'row',
@@ -132,11 +139,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   badge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.2)',
   },
   badgeText: {
     fontSize: 10,
@@ -144,9 +150,8 @@ const styles = StyleSheet.create({
   },
   subtitleText: {
     fontSize: 11,
-    color: Colors.textMuted,
+    color: '#94A3B8',
     fontWeight: '500',
     flex: 1,
   },
 });
-

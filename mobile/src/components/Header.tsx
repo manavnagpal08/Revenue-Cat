@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { safeHaptic } from '../utils/haptics';
 import { Colors, Shadows } from '../constants/theme';
 import { Sparkles, Bell, ChevronDown } from 'lucide-react-native';
@@ -40,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <View style={styles.businessActiveDot} />
             <Text style={styles.businessTag} numberOfLines={1}>{businessName}</Text>
-            <ChevronDown size={13} color={Colors.textSecondary} />
+            <ChevronDown size={12} color="#64748B" />
           </TouchableOpacity>
 
           {showAiBadge ? (
@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
           }}
           style={styles.iconButton}
         >
-          <Bell size={19} color={Colors.textSecondary} />
+          <Bell size={18} color="#475569" />
           <View style={styles.unreadDot} />
         </TouchableOpacity>
 
@@ -96,8 +96,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   leftContainer: {
     flex: 1,
@@ -106,19 +106,19 @@ const styles = StyleSheet.create({
   tagRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+    gap: 7,
+    marginBottom: 4,
   },
   businessSwitcherTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.9)',
+    borderColor: '#E2E8F0',
     ...Shadows.sm,
   },
   businessActiveDot: {
@@ -128,81 +128,80 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   businessTag: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: Colors.text,
-    letterSpacing: 0.2,
+    color: '#0F172A',
+    letterSpacing: -0.1,
     maxWidth: 130,
   },
   aiBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primarySubtle,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.2)',
     gap: 4,
   },
   aiBadgeText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '800',
-    color: Colors.primaryDark,
+    color: '#047857',
     letterSpacing: 0.2,
   },
   greetingText: {
-    fontSize: 23,
+    fontSize: 21,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#0F172A',
     letterSpacing: -0.5,
   },
   subtitleText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
+    fontSize: 12.5,
+    color: '#64748B',
+    marginTop: 1,
     fontWeight: '500',
   },
   rightContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   iconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: Colors.borderGlass,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    ...Shadows.card,
+    ...Shadows.sm,
   },
   unreadDot: {
     position: 'absolute',
-    top: 9,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 8,
+    right: 9,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: Colors.primary,
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
   avatarButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    borderWidth: 1.5,
     borderColor: Colors.primaryLight,
     overflow: 'hidden',
-    ...Shadows.glowSubtle,
+    ...Shadows.sm,
   },
   avatarImage: {
     width: '100%',
     height: '100%',
   },
 });
-
