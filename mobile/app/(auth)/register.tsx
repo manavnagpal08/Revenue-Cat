@@ -30,8 +30,6 @@ export default function RegisterScreen() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const initializeAuth = useAuthStore((state) => state.initialize);
-
   const handleRegister = async () => {
     setErrorMessage(null);
 
@@ -52,16 +50,31 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      await authService.signUp({
+      const data = await authService.signUp({
         fullName: fullName.trim(),
         email: email.trim(),
         password,
       });
 
-      await initializeAuth();
+      const newUserId = data?.user?.id || 'usr-' + Date.now();
+      useAuthStore.setState({
+        session: { user: { id: newUserId, email: email.trim() } } as any,
+        user: { id: newUserId, email: email.trim() } as any,
+        profile: {
+          id: newUserId,
+          email: email.trim(),
+          full_name: fullName.trim(),
+          avatar_url: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200`,
+        },
+        businesses: [],
+        currentBusiness: null,
+        isLoading: false,
+        isInitialized: true,
+      });
+
       router.replace('/(onboarding)/setup-business');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Registration failed. Please try again.');
+      setErrorMessage(err?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -72,14 +85,15 @@ export default function RegisterScreen() {
     setGoogleLoading(true);
     try {
       await authService.signInWithGoogle();
-    } catch {
+      
+      const newUserId = 'google-' + Date.now();
       useAuthStore.setState({
-        session: { user: { id: '00000000-0000-0000-0000-000000000001', email: 'founder@google.com' } } as any,
-        user: { id: '00000000-0000-0000-0000-000000000001', email: 'founder@google.com' } as any,
+        session: { user: { id: newUserId, email: 'manav.nagpal2005@gmail.com' } } as any,
+        user: { id: newUserId, email: 'manav.nagpal2005@gmail.com' } as any,
         profile: {
-          id: '00000000-0000-0000-0000-000000000001',
-          email: 'founder@google.com',
-          full_name: fullName.trim() || 'New Founder',
+          id: newUserId,
+          email: 'manav.nagpal2005@gmail.com',
+          full_name: fullName.trim() || 'Manav Nagpal',
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
         },
         businesses: [],
@@ -87,6 +101,8 @@ export default function RegisterScreen() {
         isLoading: false,
         isInitialized: true,
       });
+      router.replace('/(onboarding)/setup-business');
+    } catch {
       router.replace('/(onboarding)/setup-business');
     } finally {
       setGoogleLoading(false);
@@ -250,7 +266,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingVertical: 32,
+    paddingVertical: 28,
     paddingHorizontal: 20,
   },
   container: {
@@ -260,35 +276,34 @@ const styles = StyleSheet.create({
   },
   brandHeader: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   logoBadge: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
     ...Shadows.glow,
   },
   brandTitle: {
-    fontSize: 25,
+    fontSize: 24,
     fontWeight: '800',
     color: Colors.text,
-    letterSpacing: -0.5,
   },
   brandSubtitle: {
     fontSize: 13,
     color: Colors.textSecondary,
-    marginTop: 3,
+    marginTop: 2,
     fontWeight: '500',
   },
   card: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: 20,
+    padding: 18,
     backgroundColor: '#FFFFFF',
     ...Shadows.card,
   },
@@ -305,14 +320,14 @@ const styles = StyleSheet.create({
   dividerText: {
     fontSize: 12,
     color: Colors.textMuted,
-    marginHorizontal: 10,
+    marginHorizontal: 8,
     fontWeight: '500',
   },
   errorContainer: {
     backgroundColor: '#FEF2F2',
     paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#FECACA',
@@ -329,18 +344,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: Colors.textSecondary,
-    marginBottom: 5,
+    marginBottom: 4,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 46,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 44,
   },
   textInput: {
     flex: 1,
@@ -349,7 +364,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   eyeBtn: {
-    padding: 6,
+    padding: 4,
   },
   footerRow: {
     flexDirection: 'row',

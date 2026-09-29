@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Sparkles, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
-import { Colors, Shadows, Typography } from '../../src/constants/theme';
+import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
 import { GoogleButton } from '../../src/components/GoogleButton';
@@ -28,8 +28,6 @@ export default function LoginScreen() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const initializeAuth = useAuthStore((state) => state.initialize);
-
   const handleLogin = async () => {
     setErrorMessage(null);
     if (!email.trim() || !password) {
@@ -44,39 +42,20 @@ export default function LoginScreen() {
         password,
       });
 
-      await initializeAuth();
-      const currentBiz = useAuthStore.getState().currentBusiness;
+      const userEmail = email.trim();
+      const userName = userEmail.split('@')[0] || 'Alex Rivera';
 
-      if (!currentBiz) {
-        router.replace('/(onboarding)/setup-business');
-      } else {
-        router.replace('/(tabs)');
-      }
-    } catch (err: any) {
-      // Fallback: If Supabase connection isn't configured, enable instant local demo access
-      if (email.trim().toLowerCase() === 'alex.founder@soloceo.app' || email.trim().length > 0) {
-        useAuthStore.setState({
-          session: { user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } } as any,
-          user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } as any,
-          profile: {
-            id: '00000000-0000-0000-0000-000000000001',
-            email: 'alex.founder@soloceo.app',
-            full_name: 'Alex Rivera',
-            avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-          },
-          businesses: [
-            {
-              id: '00000000-0000-0000-0000-000000000002',
-              name: 'Rivera Studio',
-              slug: 'rivera-studio',
-              owner_id: '00000000-0000-0000-0000-000000000001',
-              industry: 'Design & Tech Agency',
-              currency: 'INR',
-              currency_symbol: '₹',
-              created_at: new Date().toISOString(),
-            },
-          ],
-          currentBusiness: {
+      useAuthStore.setState({
+        session: { user: { id: '00000000-0000-0000-0000-000000000001', email: userEmail } } as any,
+        user: { id: '00000000-0000-0000-0000-000000000001', email: userEmail } as any,
+        profile: {
+          id: '00000000-0000-0000-0000-000000000001',
+          email: userEmail,
+          full_name: userName.charAt(0).toUpperCase() + userName.slice(1),
+          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+        },
+        businesses: [
+          {
             id: '00000000-0000-0000-0000-000000000002',
             name: 'Rivera Studio',
             slug: 'rivera-studio',
@@ -86,13 +65,23 @@ export default function LoginScreen() {
             currency_symbol: '₹',
             created_at: new Date().toISOString(),
           },
-          isLoading: false,
-          isInitialized: true,
-        });
-        router.replace('/(tabs)');
-        return;
-      }
-      setErrorMessage(err.message || 'Invalid email or password');
+        ],
+        currentBusiness: {
+          id: '00000000-0000-0000-0000-000000000002',
+          name: 'Rivera Studio',
+          slug: 'rivera-studio',
+          owner_id: '00000000-0000-0000-0000-000000000001',
+          industry: 'Design & Tech Agency',
+          currency: 'INR',
+          currency_symbol: '₹',
+          created_at: new Date().toISOString(),
+        },
+        isLoading: false,
+        isInitialized: true,
+      });
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -103,14 +92,14 @@ export default function LoginScreen() {
     setGoogleLoading(true);
     try {
       await authService.signInWithGoogle();
-    } catch {
-      // Direct instant OAuth fallback
+      
+      // Instant Google Session
       useAuthStore.setState({
-        session: { user: { id: '00000000-0000-0000-0000-000000000001', email: 'manav.founder@google.com' } } as any,
-        user: { id: '00000000-0000-0000-0000-000000000001', email: 'manav.founder@google.com' } as any,
+        session: { user: { id: '00000000-0000-0000-0000-000000000001', email: 'manav.nagpal2005@gmail.com' } } as any,
+        user: { id: '00000000-0000-0000-0000-000000000001', email: 'manav.nagpal2005@gmail.com' } as any,
         profile: {
           id: '00000000-0000-0000-0000-000000000001',
-          email: 'manav.founder@google.com',
+          email: 'manav.nagpal2005@gmail.com',
           full_name: 'Manav Nagpal',
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
         },
@@ -140,6 +129,8 @@ export default function LoginScreen() {
         isInitialized: true,
       });
       router.replace('/(tabs)');
+    } catch {
+      router.replace('/(tabs)');
     } finally {
       setGoogleLoading(false);
     }
@@ -149,36 +140,17 @@ export default function LoginScreen() {
     setEmail('alex.founder@soloceo.app');
     setPassword('Password123!');
     setLoading(true);
-    try {
-      await authService.signIn({
+    useAuthStore.setState({
+      session: { user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } } as any,
+      user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } as any,
+      profile: {
+        id: '00000000-0000-0000-0000-000000000001',
         email: 'alex.founder@soloceo.app',
-        password: 'Password123!',
-      });
-      await initializeAuth();
-      router.replace('/(tabs)');
-    } catch {
-      useAuthStore.setState({
-        session: { user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } } as any,
-        user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } as any,
-        profile: {
-          id: '00000000-0000-0000-0000-000000000001',
-          email: 'alex.founder@soloceo.app',
-          full_name: 'Alex Rivera',
-          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-        },
-        businesses: [
-          {
-            id: '00000000-0000-0000-0000-000000000002',
-            name: 'Rivera Studio',
-            slug: 'rivera-studio',
-            owner_id: '00000000-0000-0000-0000-000000000001',
-            industry: 'Design & Tech Agency',
-            currency: 'INR',
-            currency_symbol: '₹',
-            created_at: new Date().toISOString(),
-          },
-        ],
-        currentBusiness: {
+        full_name: 'Alex Rivera',
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+      },
+      businesses: [
+        {
           id: '00000000-0000-0000-0000-000000000002',
           name: 'Rivera Studio',
           slug: 'rivera-studio',
@@ -188,13 +160,22 @@ export default function LoginScreen() {
           currency_symbol: '₹',
           created_at: new Date().toISOString(),
         },
-        isLoading: false,
-        isInitialized: true,
-      });
-      router.replace('/(tabs)');
-    } finally {
-      setLoading(false);
-    }
+      ],
+      currentBusiness: {
+        id: '00000000-0000-0000-0000-000000000002',
+        name: 'Rivera Studio',
+        slug: 'rivera-studio',
+        owner_id: '00000000-0000-0000-0000-000000000001',
+        industry: 'Design & Tech Agency',
+        currency: 'INR',
+        currency_symbol: '₹',
+        created_at: new Date().toISOString(),
+      },
+      isLoading: false,
+      isInitialized: true,
+    });
+    router.replace('/(tabs)');
+    setLoading(false);
   };
 
   return (
@@ -215,7 +196,7 @@ export default function LoginScreen() {
               </View>
               <Text style={styles.brandTitle}>SoloCEO</Text>
               <Text style={styles.brandSubtitle}>
-                AI Operations & Subscriptions Engine
+                AI Operations & Business Management
               </Text>
             </View>
 
@@ -234,7 +215,7 @@ export default function LoginScreen() {
                 title="Continue with Google"
                 loading={googleLoading}
                 onPress={handleGoogleSignIn}
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: 14 }}
               />
 
               <View style={styles.dividerRow}>
@@ -333,7 +314,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingVertical: 32,
+    paddingVertical: 28,
     paddingHorizontal: 20,
   },
   container: {
@@ -343,49 +324,47 @@ const styles = StyleSheet.create({
   },
   brandHeader: {
     alignItems: 'center',
-    marginBottom: 22,
+    marginBottom: 20,
   },
   logoBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
     ...Shadows.glow,
   },
   brandTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     color: Colors.text,
-    letterSpacing: -0.6,
   },
   brandSubtitle: {
     fontSize: 13,
     color: Colors.textSecondary,
-    marginTop: 3,
+    marginTop: 2,
     fontWeight: '500',
   },
   card: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: 20,
+    padding: 18,
     backgroundColor: '#FFFFFF',
     ...Shadows.card,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 16,
-    letterSpacing: -0.2,
+    marginBottom: 14,
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 14,
+    marginVertical: 12,
   },
   dividerLine: {
     flex: 1,
@@ -395,15 +374,15 @@ const styles = StyleSheet.create({
   dividerText: {
     fontSize: 12,
     color: Colors.textMuted,
-    marginHorizontal: 10,
+    marginHorizontal: 8,
     fontWeight: '500',
   },
   errorContainer: {
     backgroundColor: '#FEF2F2',
     paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 10,
-    marginBottom: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#FECACA',
   },
@@ -413,25 +392,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   inputGroup: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
   inputLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: Colors.textSecondary,
-    marginBottom: 6,
-    letterSpacing: -0.1,
+    marginBottom: 4,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 46,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 44,
   },
   textInput: {
     flex: 1,
@@ -440,13 +418,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   eyeBtn: {
-    padding: 6,
+    padding: 4,
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 18,
   },
   footerText: {
     fontSize: 13,
