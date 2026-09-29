@@ -1,0 +1,1 @@
+# soloceo app package
