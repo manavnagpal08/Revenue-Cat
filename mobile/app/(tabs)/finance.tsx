@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 90,
+    paddingBottom: 130,
   },
   kpiRow: {
     flexDirection: 'row',

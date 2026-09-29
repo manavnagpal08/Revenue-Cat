@@ -125,6 +125,12 @@ const styles = StyleSheet.create({
           shadowOpacity: 0.35,
           shadowRadius: 32,
           elevation: 20,
+          borderLeftWidth: 1,
+          borderRightWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.12)',
+          minHeight: '100vh' as any,
+          height: '100%',
+          overflow: 'hidden' as any,
         }
       : {}),
   },

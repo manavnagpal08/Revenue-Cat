@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 24,
+    paddingBottom: 120,
   },
   promptsContainer: {
     marginBottom: 16,
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,
-    marginBottom: Platform.OS === 'ios' ? 0 : 76,
+    marginBottom: Platform.OS === 'ios' ? 92 : 82,
     ...Shadows.card,
   },
   input: {
