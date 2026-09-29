@@ -6,17 +6,22 @@ export const profileService = {
    * Fetches the current user profile from Supabase.
    */
   async getCurrentProfile(userId: string): Promise<UserProfile | null> {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (error) {
-      console.warn('Error fetching profile:', error.message);
+      if (error) {
+        console.warn('Error fetching profile:', error.message);
+        return null;
+      }
+      return data as UserProfile | null;
+    } catch (err: any) {
+      console.warn('Network exception in getCurrentProfile:', err);
       return null;
     }
-    return data as UserProfile | null;
   },
 
   /**

@@ -43,8 +43,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // 1. Get current session
-      const { data: { session } } = await supabase.auth.getSession();
+      // 1. Get current session — wrapped so network failures don't block startup
+      let session = null;
+      try {
+        const { data } = await supabase.auth.getSession();
+        session = data?.session || null;
+      } catch (netErr: any) {
+        console.warn('Network error getting session (offline mode):', netErr);
+      }
       
       if (!session?.user) {
         set({
@@ -62,11 +68,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ session, user: session.user });
 
       // 2. Fetch Profile from Supabase
-      const profile = await profileService.getCurrentProfile(session.user.id);
+      let profile = null;
+      try {
+        profile = await profileService.getCurrentProfile(session.user.id);
+      } catch {}
+
       if (profile) {
         set({ profile });
       } else {
-        // Fallback user profile creation
         const newProfile: UserProfile = {
           id: session.user.id,
           email: session.user.email || '',
@@ -76,12 +85,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ profile: newProfile });
       }
 
-      // 3. Fetch User Businesses from Supabase
+      // 3. Fetch User Businesses — already returns [] on error
       const businesses = await workspaceService.getUserBusinesses(session.user.id);
       
       let activeBiz: Business | null = null;
       if (businesses.length > 0) {
-        // Preserve currently selected or select the first business
         const prevId = get().currentBusiness?.id;
         activeBiz = businesses.find((b) => b.id === prevId) || businesses[0];
       }
@@ -95,7 +103,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err: any) {
       console.error('Error initializing Auth / Workspace state:', err);
       set({
-        error: err.message || 'Failed to load session',
+        error: null, // Don't show error to user, just proceed to auth
+        session: null,
+        user: null,
+        profile: null,
+        currentBusiness: null,
+        businesses: [],
         isLoading: false,
         isInitialized: true,
       });
