@@ -678,4 +678,156 @@ class SubscriptionUpgradeRequest(BaseModel):
     plan_tier: str  # 'starter', 'business', 'pro'
 
 
+# --- PHASE 9: BUSINESS INTELLIGENCE, ANALYTICS & AI REPORTING SCHEMAS ---
+
+class AnalyticsOverviewResponse(BaseModel):
+    time_frame: str
+    period_start: datetime
+    period_end: datetime
+    total_revenue: float = 0.0
+    revenue_growth_percent: float = 0.0
+    collected_revenue: float = 0.0
+    outstanding_revenue: float = 0.0
+    total_leads: int = 0
+    leads_growth_percent: float = 0.0
+    total_customers: int = 0
+    active_customers: int = 0
+    revenue_trend: List[Dict[str, Any]] = []
+    lead_pipeline_summary: Dict[str, Any] = {}
+    top_insights: List[Dict[str, Any]] = []
+
+class RevenueAnalyticsResponse(BaseModel):
+    time_frame: str
+    period_start: datetime
+    period_end: datetime
+    total_invoiced: float = 0.0
+    total_collected: float = 0.0
+    total_outstanding: float = 0.0
+    total_overdue: float = 0.0
+    collection_rate_percent: float = 0.0
+    average_invoice_value: float = 0.0
+    revenue_over_time: List[Dict[str, Any]] = []
+    revenue_by_source: List[Dict[str, Any]] = []
+    top_paying_customers: List[Dict[str, Any]] = []
+
+class SalesAnalyticsResponse(BaseModel):
+    time_frame: str
+    period_start: datetime
+    period_end: datetime
+    total_leads: int = 0
+    won_leads: int = 0
+    lost_leads: int = 0
+    win_rate_percent: float = 0.0
+    total_pipeline_value: float = 0.0
+    average_deal_size: float = 0.0
+    average_sales_cycle_days: float = 0.0
+    funnel_stages: List[Dict[str, Any]] = []
+    leads_by_source: List[Dict[str, Any]] = []
+    proposals_summary: Dict[str, Any] = {}
+
+class CustomerAnalyticsResponse(BaseModel):
+    time_frame: str
+    period_start: datetime
+    period_end: datetime
+    total_customers: int = 0
+    new_customers: int = 0
+    active_customers: int = 0
+    churn_or_inactive_count: int = 0
+    growth_trend: List[Dict[str, Any]] = []
+    segments: Dict[str, int] = {}
+    top_customers: List[Dict[str, Any]] = []
+
+class FinanceAnalyticsResponse(BaseModel):
+    time_frame: str
+    period_start: datetime
+    period_end: datetime
+    total_invoices: int = 0
+    paid_invoices_count: int = 0
+    pending_invoices_count: int = 0
+    overdue_invoices_count: int = 0
+    total_amount_billed: float = 0.0
+    total_amount_collected: float = 0.0
+    total_amount_overdue: float = 0.0
+    overdue_aging: Dict[str, float] = {}
+    payment_velocity_average_days: float = 0.0
+    status_distribution: List[Dict[str, Any]] = []
+
+class AIUsageAnalyticsResponse(BaseModel):
+    time_frame: str
+    credits_total: int = 0
+    credits_used: int = 0
+    credits_remaining: int = 0
+    total_ai_requests: int = 0
+    credits_used_by_agent: Dict[str, int] = {}
+    credits_used_by_action: Dict[str, int] = {}
+    daily_usage_trend: List[Dict[str, Any]] = []
+
+class AutomationAnalyticsDetailsResponse(BaseModel):
+    time_frame: str
+    total_workflows: int = 0
+    active_workflows: int = 0
+    total_executions: int = 0
+    successful_executions: int = 0
+    failed_executions: int = 0
+    success_rate_percent: float = 0.0
+    time_saved_hours_estimated: float = 0.0
+    executions_timeline: List[Dict[str, Any]] = []
+    workflow_performance: List[Dict[str, Any]] = []
+
+class BusinessInsightItem(BaseModel):
+    id: str
+    category: str
+    severity: str  # 'high', 'medium', 'low', 'positive'
+    title: str
+    description: str
+    action_label: Optional[str] = None
+    action_route: Optional[str] = None
+    metric_impact: Optional[str] = None
+    calculated_at: datetime
+
+class BusinessInsightsResponse(BaseModel):
+    insights: List[BusinessInsightItem] = []
+    summary_counts: Dict[str, int] = {}
+
+class ReportGenerateRequest(BaseModel):
+    business_id: str
+    report_type: str = "executive_summary"
+    time_frame: str = "30d"
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
+    sections: Optional[List[str]] = None
+    title: Optional[str] = None
+
+class ReportResponse(BaseModel):
+    id: str
+    business_id: str
+    created_by: Optional[str] = None
+    report_type: str
+    title: str
+    period_start: datetime
+    period_end: datetime
+    time_frame: str
+    summary: str
+    sections: List[Dict[str, Any]] = []
+    structured_data: Dict[str, Any] = {}
+    created_at: datetime
+
+class ReportListItemResponse(BaseModel):
+    id: str
+    business_id: str
+    report_type: str
+    title: str
+    period_start: datetime
+    period_end: datetime
+    time_frame: str
+    created_at: datetime
+
+class ReportExportResponse(BaseModel):
+    report_id: str
+    format: str
+    content: str
+    filename: str
+
+
+
 

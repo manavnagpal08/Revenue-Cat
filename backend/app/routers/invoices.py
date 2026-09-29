@@ -17,6 +17,9 @@ from app.core.supabase_client import get_supabase_client, get_supabase_admin_cli
 logger = logging.getLogger("soloceo.invoices")
 router = APIRouter(prefix="/invoices", tags=["Invoices & Billing"])
 
+# In-memory store for local testing/fallback
+_local_invoices: Dict[str, Dict[str, Any]] = {}
+
 def compute_financials(items: List[InvoiceItemBase], tax_rate: float = 18.0, discount_amount: float = 0.0):
     """Accurately calculates line items total, subtotal, tax amount, and final total."""
     subtotal = sum(item.quantity * item.unit_price for item in items)

@@ -223,6 +223,49 @@ export default function MoreScreen() {
           </GlassCard>
         </TouchableOpacity>
 
+        {/* Analytics & Business Intelligence Section */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeader}>BUSINESS INTELLIGENCE &amp; ANALYTICS</Text>
+          <TouchableOpacity onPress={() => router.push('/analytics' as any)}>
+            <Text style={styles.seeAllText}>Overview</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/analytics' as any)}>
+          <GlassCard style={styles.settingsGroup}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
+                  <Sparkles size={16} color="#059669" />
+                </View>
+                <View>
+                  <Text style={styles.settingLabel}>Analytics &amp; KPI Dashboard</Text>
+                  <Text style={styles.settingSub}>Revenue, sales funnels, cohort health &amp; reports</Text>
+                </View>
+              </View>
+              <ChevronRight size={18} color={Colors.textMuted} />
+            </View>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => router.push('/analytics/reports' as any)}
+            >
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconBox, { backgroundColor: '#EFF6FF' }]}>
+                  <CreditCard size={16} color="#2563EB" />
+                </View>
+                <View>
+                  <Text style={styles.settingLabel}>AI Reports Studio &amp; Export</Text>
+                  <Text style={styles.settingSub}>Executive summaries in PDF, CSV, &amp; Markdown</Text>
+                </View>
+              </View>
+              <ChevronRight size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </GlassCard>
+        </TouchableOpacity>
+
         {/* AI Automations Section */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionHeader}>AI AUTOMATION & WORKFLOWS</Text>

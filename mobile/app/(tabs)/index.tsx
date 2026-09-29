@@ -220,6 +220,34 @@ export default function HomeScreen() {
           </GlassCard>
         </View>
 
+        {/* Business Intelligence & Analytics Hub Widget */}
+        <View style={styles.sectionContainer}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/analytics' as any)}
+          >
+            <GlassCard variant="elevated" style={styles.automationsWidgetCard}>
+              <View style={styles.automationsWidgetRow}>
+                <View style={styles.automationsWidgetLeft}>
+                  <View style={[styles.autoWidgetIconWrap, { backgroundColor: '#ECFDF5' }]}>
+                    <TrendingUp size={16} color="#059669" />
+                  </View>
+                  <View>
+                    <Text style={styles.autoWidgetTitle}>Business Intelligence &amp; Analytics</Text>
+                    <Text style={styles.autoWidgetSubtitle}>Revenue, Pipeline Funnel &amp; AI Reports</Text>
+                  </View>
+                </View>
+                <View style={styles.autoWidgetRight}>
+                  <View style={[styles.runningPill, { backgroundColor: '#ECFDF5' }]}>
+                    <Text style={[styles.runningPillText, { color: '#059669' }]}>Active</Text>
+                  </View>
+                  <ArrowRight size={16} color="#94A3B8" />
+                </View>
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
+        </View>
+
         {/* Automations Summary Widget (Screen 10) */}
         <View style={styles.sectionContainer}>
           <TouchableOpacity

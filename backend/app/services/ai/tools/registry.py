@@ -182,6 +182,50 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
         "type": "WRITE",
         "handler": lambda business_id, name_or_id: __import__("app.services.ai.tools.automation_tools", fromlist=["run_automation_tool"]).run_automation_tool(business_id, name_or_id),
         "parameters": {"name_or_id": "required string"}
+    },
+
+    # Analytics & BI Tools
+    "get_analytics_overview": {
+        "name": "get_analytics_overview",
+        "description": "Get high-level business intelligence overview (revenue, leads, customers, trend).",
+        "type": "READ",
+        "handler": lambda business_id, time_frame="30d": __import__("app.services.ai.tools.analytics_tools", fromlist=["get_analytics_overview_tool"]).get_analytics_overview_tool(business_id, time_frame),
+        "parameters": {"time_frame": "optional string (7d, 30d, 90d, 1y)"}
+    },
+    "get_revenue_analytics": {
+        "name": "get_revenue_analytics",
+        "description": "Retrieve comprehensive revenue analysis, collected amounts, and customer revenue rankings.",
+        "type": "READ",
+        "handler": lambda business_id, time_frame="30d": __import__("app.services.ai.tools.analytics_tools", fromlist=["get_revenue_analytics_tool"]).get_revenue_analytics_tool(business_id, time_frame),
+        "parameters": {"time_frame": "optional string"}
+    },
+    "get_sales_analytics": {
+        "name": "get_sales_analytics",
+        "description": "Retrieve sales pipeline funnel, conversion velocity, win/loss rates, and deal sizes.",
+        "type": "READ",
+        "handler": lambda business_id, time_frame="30d": __import__("app.services.ai.tools.analytics_tools", fromlist=["get_sales_analytics_tool"]).get_sales_analytics_tool(business_id, time_frame),
+        "parameters": {"time_frame": "optional string"}
+    },
+    "get_customer_analytics": {
+        "name": "get_customer_analytics",
+        "description": "Retrieve customer segmentation (high-value, active, at-risk, inactive) and growth rates.",
+        "type": "READ",
+        "handler": lambda business_id, time_frame="30d": __import__("app.services.ai.tools.analytics_tools", fromlist=["get_customer_analytics_tool"]).get_customer_analytics_tool(business_id, time_frame),
+        "parameters": {"time_frame": "optional string"}
+    },
+    "get_business_insights": {
+        "name": "get_business_insights",
+        "description": "Get AI recommendations, overdue alerts, and business improvement opportunities.",
+        "type": "READ",
+        "handler": lambda business_id, time_frame="30d", category=None: __import__("app.services.ai.tools.analytics_tools", fromlist=["get_business_insights_tool"]).get_business_insights_tool(business_id, time_frame, category),
+        "parameters": {"time_frame": "optional string", "category": "optional string"}
+    },
+    "generate_business_report": {
+        "name": "generate_business_report",
+        "description": "Generate an executive business report with multi-section narrative breakdown.",
+        "type": "WRITE",
+        "handler": lambda business_id, report_type="executive_summary", time_frame="30d": __import__("app.services.ai.tools.analytics_tools", fromlist=["generate_business_report_tool"]).generate_business_report_tool(business_id, report_type, time_frame),
+        "parameters": {"report_type": "optional string", "time_frame": "optional string"}
     }
 }
 

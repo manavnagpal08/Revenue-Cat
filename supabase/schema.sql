@@ -595,5 +595,35 @@ CREATE POLICY "Business billing history access" ON public.billing_history
 CREATE POLICY "Business billing audit access" ON public.billing_audit_logs
     FOR ALL USING (public.is_business_member(business_id));
 
+-- ==============================================================================
+-- 22. BUSINESS INTELLIGENCE & AI REPORTS (PHASE 9)
+-- ==============================================================================
+
+-- 22.1 REPORTS (Persistent AI generated reports)
+CREATE TABLE IF NOT EXISTS public.reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    report_type TEXT NOT NULL, -- 'monthly_business', 'revenue', 'sales_pipeline', 'customer', 'finance', 'automation_performance', 'ai_usage', 'executive_summary'
+    title TEXT NOT NULL,
+    period_start TIMESTAMPTZ,
+    period_end TIMESTAMPTZ,
+    time_frame TEXT DEFAULT '30d', -- '7d', '30d', '90d', '1y', 'custom'
+    structured_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    summary TEXT NOT NULL,
+    sections JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 22.2 INDEXES FOR REPORTS
+CREATE INDEX IF NOT EXISTS idx_reports_biz ON public.reports(business_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reports_type ON public.reports(business_id, report_type);
+
+-- 22.3 ROW LEVEL SECURITY FOR REPORTS
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Business reports access" ON public.reports
+    FOR ALL USING (public.is_business_member(business_id));
 
 

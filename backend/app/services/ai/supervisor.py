@@ -61,8 +61,12 @@ class AISupervisor:
             return "SALES"
 
         # Customer support intent
-        if any(w in q for w in ["customer", "client", "response", "reply", "draft", "summary of", "email to", "message to"]):
+        if any(w in q for w in ["customer", "client", "draft a response", "summary of", "email to", "message to"]):
             return "CUSTOMER_SUPPORT"
+
+        # Analytics & Reporting intent
+        if any(w in q for w in ["report", "analytics", "bi", "metric", "insight", "funnel", "growth", "breakdown", "executive summary", "kpi"]):
+            return "ANALYTICS"
 
         # General business intent
         return "GENERAL_BUSINESS"
@@ -206,6 +210,32 @@ class AISupervisor:
                         }
                     ]
                 }
+        elif intent == "ANALYTICS":
+            from app.services.analytics.analytics_service import AnalyticsService
+            overview = AnalyticsService.get_overview(business_id=business_id, time_frame="30d")
+            insights = AnalyticsService.get_insights(business_id=business_id, time_frame="30d")
+            top_ins = insights.insights[0].description if insights.insights else "All systems performing smoothly."
+            agent_result = {
+                "agent": "analytics_supervisor",
+                "message": f"Here is your 30-day Business Intelligence overview for {business_name}:\n\n• Collected Revenue: ₹{overview.collected_revenue:,.2f} ({overview.revenue_growth_percent}% growth)\n• Active Pipeline: {overview.total_leads} leads\n• Customer Base: {overview.total_customers} clients ({overview.active_customers} active)\n\nKey Strategic Insight:\n{top_ins}",
+                "structured_data": overview.model_dump(),
+                "action_cards": [
+                    {
+                        "type": "navigation",
+                        "title": "Open Analytics Hub",
+                        "description": "View deep interactive charts, customer segmentation, and financial telemetry.",
+                        "primary_action_label": "View Analytics",
+                        "action_payload": {"route": "/analytics"}
+                    },
+                    {
+                        "type": "navigation",
+                        "title": "Generate Formal Report",
+                        "description": "Compile an executive PDF/CSV business report with narrative breakdowns.",
+                        "primary_action_label": "Create Report",
+                        "action_payload": {"route": "/analytics/reports"}
+                    }
+                ]
+            }
         elif intent == "INTEGRATIONS":
             agent_result = await self.integration_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})
         elif intent == "SALES":
