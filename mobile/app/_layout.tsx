@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store/authStore';
 import { Colors, Shadows } from '../src/constants/theme';
 import { Sparkles } from 'lucide-react-native';
+import { AnimatedSplashScreen } from '../src/components/AnimatedSplashScreen';
 
 export default function RootLayout() {
   const { isInitialized, session, currentBusiness, businesses, initialize } = useAuthStore();
@@ -44,14 +45,7 @@ export default function RootLayout() {
     return (
       <SafeAreaProvider>
         <StatusBar style="dark" />
-        <View style={styles.loadingContainer}>
-          <View style={styles.logoBadge}>
-            <Sparkles size={32} color="#FFFFFF" />
-          </View>
-          <Text style={styles.brandTitle}>SoloCEO</Text>
-          <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 16 }} />
-          <Text style={styles.loadingText}>Restoring business session...</Text>
-        </View>
+        <AnimatedSplashScreen message="Restoring business session..." />
       </SafeAreaProvider>
     );
   }
