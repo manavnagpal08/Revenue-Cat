@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   View,
@@ -30,11 +30,32 @@ import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
 import { WorkspaceSwitcherModal } from '../../src/components/WorkspaceSwitcherModal';
 import { useAuthStore } from '../../src/store/authStore';
+import { billingService, SubscriptionData, UsageSummary } from '../../src/services/billingService';
 
 export default function MoreScreen() {
   const router = useRouter();
   const { profile, currentBusiness, businesses, signOut } = useAuthStore();
+  const businessId = currentBusiness?.id || '00000000-0000-0000-0000-000000000002';
   const [switcherVisible, setSwitcherVisible] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
+
+  useEffect(() => {
+    loadBillingInfo();
+  }, [businessId]);
+
+  const loadBillingInfo = async () => {
+    try {
+      const [subData, usageData] = await Promise.all([
+        billingService.getSubscription(businessId),
+        billingService.getUsage(businessId),
+      ]);
+      setSubscription(subData);
+      setUsage(usageData);
+    } catch (e) {
+      console.warn('Error loading more billing info:', e);
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert(
@@ -132,46 +153,75 @@ export default function MoreScreen() {
         </GlassCard>
 
         {/* RevenueCat Subscription Card */}
-        <Text style={styles.sectionHeader}>MEMBERSHIP & PLAN</Text>
-        <GlassCard variant="elevated" style={styles.subscriptionCard}>
-          <View style={styles.subHeader}>
-            <View style={styles.subBadge}>
-              <Crown size={14} color="#F59E0B" />
-              <Text style={styles.subBadgeText}>SOLOCEO PRO</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeader}>MEMBERSHIP & PLAN</Text>
+          <TouchableOpacity onPress={() => router.push('/billing' as any)}>
+            <Text style={styles.seeAllText}>Manage</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity activeOpacity={0.88} onPress={() => router.push('/billing' as any)}>
+          <GlassCard variant="elevated" style={styles.subscriptionCard}>
+            <View style={styles.subHeader}>
+              <View style={styles.subBadge}>
+                <Crown size={14} color="#F59E0B" />
+                <Text style={styles.subBadgeText}>
+                  SOLOCEO {(subscription?.tier || 'STARTER').toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.subStatus}>
+                {(subscription?.status || 'Active').toUpperCase()}
+              </Text>
             </View>
-            <Text style={styles.subStatus}>Active Plan</Text>
-          </View>
 
-          <Text style={styles.subTitle}>Unlimited AI Actions & Agents</Text>
-          <Text style={styles.subDesc}>
-            Sales, Finance & Proposal Agents active with automated business intelligence.
-          </Text>
+            <Text style={styles.subTitle}>
+              {subscription?.tier === 'pro'
+                ? 'Unlimited AI Actions & Agents'
+                : subscription?.tier === 'business'
+                ? '250 AI Credits & WhatsApp Integrations'
+                : '50 AI Credits & Smart Workflows'}
+            </Text>
+            <Text style={styles.subDesc}>
+              Sales, Finance & Proposal Agents active with automated business intelligence.
+            </Text>
 
-          <GlassButton
-            title="Manage Subscription"
-            variant="glass"
-            size="sm"
-            icon={<CreditCard size={14} color={Colors.text} />}
-            onPress={() => router.push('/paywall')}
-            style={{ marginTop: 12 }}
-          />
-        </GlassCard>
+            <GlassButton
+              title="Manage Subscription"
+              variant="glass"
+              size="sm"
+              icon={<CreditCard size={14} color={Colors.text} />}
+              onPress={() => router.push('/billing' as any)}
+              style={{ marginTop: 12 }}
+            />
+          </GlassCard>
+        </TouchableOpacity>
 
         {/* AI Usage & Credits */}
-        <GlassCard style={styles.usageCard}>
-          <View style={styles.usageHeader}>
-            <View style={styles.usageTitleRow}>
-              <Sparkles size={16} color={Colors.primary} />
-              <Text style={styles.usageTitle}>AI Operations Usage</Text>
+        <TouchableOpacity activeOpacity={0.88} onPress={() => router.push('/billing/usage' as any)}>
+          <GlassCard style={styles.usageCard}>
+            <View style={styles.usageHeader}>
+              <View style={styles.usageTitleRow}>
+                <Sparkles size={16} color={Colors.primary} />
+                <Text style={styles.usageTitle}>AI Operations Usage</Text>
+              </View>
+              <Text style={styles.usageCount}>
+                {usage?.ai_credits_used || 0} / {usage?.ai_credits_total || 50} credits
+              </Text>
             </View>
-            <Text style={styles.usageCount}>142 / Unlimited</Text>
-          </View>
 
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: '40%' }]} />
-          </View>
-          <Text style={styles.usageSub}>Resets on Oct 28, 2026</Text>
-        </GlassCard>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.min(100, usage?.ai_credits_percent || 25)}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.usageSub}>
+              {usage?.ai_credits_remaining || 0} credits remaining • Tap for breakdown
+            </Text>
+          </GlassCard>
+        </TouchableOpacity>
 
         {/* AI Automations Section */}
         <View style={styles.sectionHeaderRow}>

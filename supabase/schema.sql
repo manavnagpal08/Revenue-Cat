@@ -533,4 +533,49 @@ CREATE POLICY "Business automation actions access" ON public.automation_actions
 CREATE POLICY "Business automation templates access" ON public.automation_templates
     FOR ALL USING (business_id IS NULL OR public.is_business_member(business_id));
 
+-- ==============================================================================
+-- 21. BILLING & SUBSCRIPTION MONETIZATION (PHASE 7)
+-- ==============================================================================
+
+-- 21.1 BILLING INVOICES & HISTORY
+CREATE TABLE IF NOT EXISTS public.billing_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    subscription_id UUID REFERENCES public.subscriptions(id) ON DELETE SET NULL,
+    amount NUMERIC(10, 2) NOT NULL,
+    currency TEXT DEFAULT 'INR',
+    status TEXT NOT NULL DEFAULT 'paid', -- 'paid', 'pending', 'failed', 'refunded'
+    plan_tier TEXT NOT NULL, -- 'starter', 'business', 'pro'
+    billing_period_start TIMESTAMPTZ,
+    billing_period_end TIMESTAMPTZ,
+    provider TEXT DEFAULT 'revenuecat',
+    provider_event_id TEXT,
+    invoice_pdf_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 21.2 BILLING AUDIT LOGS
+CREATE TABLE IF NOT EXISTS public.billing_audit_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL, -- 'initial_purchase', 'renewal', 'cancellation', 'expiration', 'tier_upgrade', 'tier_downgrade', 'credits_exhausted'
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 21.3 INDEXES FOR BILLING
+CREATE INDEX IF NOT EXISTS idx_billing_history_biz ON public.billing_history(business_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_billing_audit_biz ON public.billing_audit_logs(business_id, created_at DESC);
+
+-- 21.4 ROW LEVEL SECURITY FOR BILLING
+ALTER TABLE public.billing_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.billing_audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Business billing history access" ON public.billing_history
+    FOR ALL USING (public.is_business_member(business_id));
+
+CREATE POLICY "Business billing audit access" ON public.billing_audit_logs
+    FOR ALL USING (public.is_business_member(business_id));
+
+
 

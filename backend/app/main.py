@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.routers import health, business, profile, customers, leads, invoices, proposals, dashboard, ai, integrations, automations, notifications
+from app.routers import health, business, profile, customers, leads, invoices, proposals, dashboard, ai, integrations, automations, notifications, billing
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +38,7 @@ app.include_router(ai.router, prefix="/api")
 app.include_router(integrations.router, prefix="/api")
 app.include_router(automations.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
+app.include_router(billing.router, prefix="/api")
 
 @app.get("/")
 async def root():

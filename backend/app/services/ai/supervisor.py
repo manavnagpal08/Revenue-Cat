@@ -73,6 +73,36 @@ class AISupervisor:
         """
         Main query orchestration pipeline.
         """
+        # 0. Enforce AI Credit Limit
+        from app.services.billing.usage_service import usage_service
+        has_credits, remaining_credits, total_credits = usage_service.check_ai_credits(business_id=business_id, credits_needed=1)
+        if not has_credits:
+            conv_id = conversation_id or str(uuid.uuid4())
+            return {
+                "conversation_id": conv_id,
+                "agent": "supervisor",
+                "intent": "EXHAUSTED",
+                "message": f"AI_CREDITS_EXHAUSTED: You have used all {total_credits} monthly AI credits on your current plan. Upgrade to Business or Pro to continue using SoloCEO AI.",
+                "structured_data": {
+                    "code": "AI_CREDITS_EXHAUSTED",
+                    "upgrade_required": True,
+                    "remaining_credits": remaining_credits,
+                    "total_credits": total_credits
+                },
+                "action_cards": [
+                    {
+                        "type": "upgrade_prompt",
+                        "title": "AI Credits Exhausted",
+                        "description": "Upgrade your plan to unlock 250+ AI credits, advanced automations, and priority reasoning.",
+                        "primary_action_label": "View Plans",
+                        "action_payload": {"route": "/paywall"}
+                    }
+                ],
+                "requires_confirmation": False,
+                "pending_action": None,
+                "credits_remaining": remaining_credits
+            }
+
         # 1. Fetch business name
         business_name = "My Business"
         supabase = get_supabase()
@@ -123,7 +153,14 @@ class AISupervisor:
             structured_data=agent_result.get("structured_data")
         )
 
-        # 6. Record usage
+        # 6. Record usage and consume credits
+        usage_res = usage_service.consume_ai_credits(
+            business_id=business_id,
+            user_id=user_id,
+            action_type=f"{agent_result.get('agent', 'general')}_query",
+            credits=1
+        )
+
         await self._record_usage(
             business_id=business_id,
             user_id=user_id,
@@ -140,7 +177,7 @@ class AISupervisor:
             "action_cards": agent_result.get("action_cards", []),
             "requires_confirmation": agent_result.get("requires_confirmation", False),
             "pending_action": agent_result.get("pending_action"),
-            "credits_remaining": 99
+            "credits_remaining": usage_res.get("credits_remaining", max(0, remaining_credits - 1))
         }
 
     async def _ensure_conversation(self, conv_id: str, business_id: str, user_id: str, title: str):

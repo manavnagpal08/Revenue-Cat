@@ -31,6 +31,12 @@ class AutomationEngine:
         user_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Creates a new business automation rule."""
+        from app.services.billing.usage_service import usage_service
+        active_count = sum(1 for a in in_memory_automations.values() if a.get("business_id") == business_id and a.get("enabled", True))
+        can_create, limit = usage_service.check_automation_limit(business_id=business_id, active_count=active_count)
+        if not can_create:
+            raise ValueError(f"AUTOMATION_LIMIT_REACHED: Your current plan allows up to {limit} active automations. Upgrade your plan to create more workflows.")
+
         auto_id = str(uuid.uuid4())
         data = payload.model_dump()
         data["id"] = auto_id

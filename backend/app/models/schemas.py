@@ -539,3 +539,106 @@ class NotificationResponse(BaseModel):
     created_at: datetime
 
 
+# --- PHASE 7: MONETIZATION, SUBSCRIPTIONS & BILLING SCHEMAS ---
+
+class PlanConfigResponse(BaseModel):
+    id: str  # 'free', 'starter', 'business', 'pro'
+    name: str  # 'Starter', 'Business', 'Pro'
+    price_monthly: float
+    currency: str = "INR"
+    currency_symbol: str = "₹"
+    ai_credits_monthly: int
+    automations_limit: int
+    included_integrations: List[str]
+    features: List[str]
+    description: str
+    is_popular: bool = False
+    revenuecat_product_id: Optional[str] = None
+
+class SubscriptionResponse(BaseModel):
+    id: str
+    business_id: str
+    user_id: str
+    tier: str  # 'free', 'starter', 'business', 'pro'
+    status: str  # 'active', 'trialing', 'canceled', 'past_due', 'expired'
+    provider: str = "revenuecat"
+    provider_customer_id: Optional[str] = None
+    provider_subscription_id: Optional[str] = None
+    active_entitlements: List[str] = []
+    current_period_start: Optional[datetime] = None
+    current_period_end: Optional[datetime] = None
+    cancel_at_period_end: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class EntitlementsResponse(BaseModel):
+    business_id: str
+    tier: str
+    status: str
+    can_access_ai_command: bool = True
+    can_access_all_agents: bool = True
+    can_access_integrations: bool = True
+    can_access_automations: bool = True
+    ai_credits_total: int = 15
+    ai_credits_used: int = 0
+    ai_credits_remaining: int = 15
+    automations_limit: int = 2
+    automations_active: int = 0
+    automations_remaining: int = 2
+    feature_flags: Dict[str, bool] = {}
+
+class UsageRecordItem(BaseModel):
+    id: str
+    business_id: str
+    user_id: Optional[str] = None
+    action_type: str
+    credits_consumed: int
+    created_at: datetime
+
+class UsageSummaryResponse(BaseModel):
+    business_id: str
+    plan_tier: str
+    period_start: datetime
+    period_end: datetime
+    ai_credits_total: int
+    ai_credits_used: int
+    ai_credits_remaining: int
+    ai_credits_percent: float
+    automations_limit: int
+    automations_active: int
+    automations_percent: float
+    usage_by_action: Dict[str, int] = {}
+    recent_usage_records: List[UsageRecordItem] = []
+
+class BillingHistoryItemResponse(BaseModel):
+    id: str
+    business_id: str
+    amount: float
+    currency: str = "INR"
+    status: str
+    plan_tier: str
+    billing_period_start: Optional[datetime] = None
+    billing_period_end: Optional[datetime] = None
+    provider: str = "revenuecat"
+    provider_event_id: Optional[str] = None
+    invoice_pdf_url: Optional[str] = None
+    created_at: datetime
+
+class RestoreSubscriptionRequest(BaseModel):
+    business_id: str
+    app_user_id: Optional[str] = None
+
+class RestoreSubscriptionResponse(BaseModel):
+    success: bool
+    business_id: str
+    tier: str
+    status: str
+    message: str
+    entitlements: List[str] = []
+
+class SubscriptionUpgradeRequest(BaseModel):
+    business_id: str
+    plan_tier: str  # 'starter', 'business', 'pro'
+
+
+

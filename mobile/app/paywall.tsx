@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,71 +10,73 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { X, Crown, Check, Sparkles, Zap, ShieldCheck } from 'lucide-react-native';
+import { X, Crown, Check, Sparkles, Zap, ShieldCheck, RefreshCw } from 'lucide-react-native';
 import { Colors, Shadows } from '../src/constants/theme';
 import { GlassCard } from '../src/components/GlassCard';
-import { GlassButton } from '../src/components/GlassButton';
+import { useAuthStore } from '../src/store/authStore';
+import { billingService, PlanConfig, SubscriptionData } from '../src/services/billingService';
 
 export default function PaywallScreen() {
   const router = useRouter();
-  const [selectedPlan, setSelectedPlan] = useState<'starter' | 'business' | 'pro'>('pro');
-  const [purchasing, setPurchasing] = useState(false);
+  const { currentBusiness } = useAuthStore();
+  const businessId = currentBusiness?.id || '00000000-0000-0000-0000-000000000002';
 
-  const plans = [
-    {
-      id: 'starter',
-      name: 'Starter',
-      price: '₹499',
-      period: '/month',
-      desc: 'For solo freelancers starting out',
-      features: ['100 AI Operations/mo', 'Sales Agent', 'Basic Invoicing'],
-    },
-    {
-      id: 'business',
-      name: 'Business',
-      price: '₹1,499',
-      period: '/month',
-      badge: 'POPULAR',
-      desc: 'For active consultants & agencies',
-      features: [
-        '500 AI Operations/mo',
-        'Sales & Finance Agents',
-        'Automated Invoice Reminders',
-        'PDF Proposal Generator',
-      ],
-    },
-    {
-      id: 'pro',
-      name: 'SoloCEO Pro',
-      price: '₹2,999',
-      period: '/month',
-      badge: 'UNLIMITED',
-      desc: 'Complete AI Business OS',
-      features: [
-        'Unlimited AI Operations',
-        'All AI Specialized Agents',
-        'Autonomous Follow-ups',
-        'Multi-business Support',
-        'Priority AI Processing',
-      ],
-    },
-  ];
+  const [selectedPlan, setSelectedPlan] = useState<'starter' | 'business' | 'pro'>('business');
+  const [plans, setPlans] = useState<PlanConfig[]>([]);
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [purchasing, setPurchasing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+
+  useEffect(() => {
+    loadBillingData();
+  }, [businessId]);
+
+  const loadBillingData = async () => {
+    try {
+      const [plansData, subData] = await Promise.all([
+        billingService.getPlans(),
+        billingService.getSubscription(businessId),
+      ]);
+      setPlans(plansData.filter((p) => p.id !== 'free'));
+      setSubscription(subData);
+      if (subData?.tier && subData.tier !== 'free') {
+        setSelectedPlan(subData.tier as any);
+      }
+    } catch (e) {
+      console.warn('Error loading plans:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePurchase = async () => {
     setPurchasing(true);
-    // Real RevenueCat SDK purchase hook invocation
     try {
-      setTimeout(() => {
-        setPurchasing(false);
-        Alert.alert(
-          'SoloCEO Pro Active! 🚀',
-          'Your subscription has been verified. All agent workflows and unlimited AI actions are unlocked.',
-          [{ text: 'Start Operating', onPress: () => router.back() }]
-        );
-      }, 1200);
+      const updated = await billingService.upgradePlan(businessId, selectedPlan);
+      setSubscription(updated);
+      Alert.alert(
+        'Subscription Activated! 🚀',
+        `Your workspace has been upgraded to the ${selectedPlan.toUpperCase()} plan. All corresponding AI credits, agent capabilities, and workflow limits have been unlocked.`,
+        [{ text: 'Continue Operating', onPress: () => router.back() }]
+      );
     } catch (err: any) {
+      Alert.alert('Purchase Notice', err.message || 'Could not complete subscription upgrade.');
+    } finally {
       setPurchasing(false);
-      Alert.alert('Purchase Error', err.message || 'Could not complete purchase');
+    }
+  };
+
+  const handleRestore = async () => {
+    setRestoring(true);
+    try {
+      const res = await billingService.restorePurchases(businessId);
+      Alert.alert('Restore Purchases', res.message || 'Purchases restored successfully.');
+      loadBillingData();
+    } catch (err: any) {
+      Alert.alert('Restore Failed', err.message || 'No existing active subscriptions found.');
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -85,114 +87,130 @@ export default function PaywallScreen() {
         <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
           <X size={20} color={Colors.textSecondary} />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore} disabled={restoring}>
+          {restoring ? (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          ) : (
+            <Text style={styles.restoreText}>Restore</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Header Badge */}
-        <View style={styles.heroSection}>
-          <View style={styles.crownCircle}>
-            <Crown size={32} color="#F59E0B" />
+      {loading ? (
+        <View style={styles.loaderCenter}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Header Hero */}
+          <View style={styles.heroSection}>
+            <View style={styles.crownCircle}>
+              <Crown size={32} color="#F59E0B" />
+            </View>
+            <Text style={styles.heroTitle}>Upgrade SoloCEO</Text>
+            <Text style={styles.heroSub}>
+              Unlock high-throughput AI credits, unlimited automated workflows, WhatsApp integrations, and dedicated agent reasoning.
+            </Text>
           </View>
-          <Text style={styles.heroTitle}>Upgrade to SoloCEO</Text>
-          <Text style={styles.heroSub}>
-            Supercharge your business with autonomous AI agents and automated revenue operations.
-          </Text>
-        </View>
 
-        {/* Plan Cards */}
-        <View style={styles.plansContainer}>
-          {plans.map((p) => {
-            const isSelected = selectedPlan === p.id;
-            return (
-              <TouchableOpacity
-                key={p.id}
-                activeOpacity={0.85}
-                onPress={() => setSelectedPlan(p.id as any)}
-              >
-                <GlassCard
-                  variant={isSelected ? 'elevated' : 'default'}
-                  style={[
-                    styles.planCard,
-                    isSelected && styles.planCardSelected,
-                  ]}
+          {/* Plan Selector Cards */}
+          <View style={styles.plansContainer}>
+            {plans.map((plan) => {
+              const isSelected = selectedPlan === plan.id;
+              const isCurrent = subscription?.tier === plan.id;
+
+              return (
+                <TouchableOpacity
+                  key={plan.id}
+                  activeOpacity={0.88}
+                  onPress={() => setSelectedPlan(plan.id as any)}
                 >
-                  <View style={styles.planHeader}>
-                    <View>
-                      <View style={styles.planTitleRow}>
-                        <Text style={styles.planName}>{p.name}</Text>
-                        {p.badge ? (
-                          <View
-                            style={[
-                              styles.badge,
-                              { backgroundColor: isSelected ? Colors.primary : Colors.primarySubtle },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.badgeText,
-                                { color: isSelected ? '#FFFFFF' : Colors.primary },
-                              ]}
-                            >
-                              {p.badge}
-                            </Text>
+                  <GlassCard
+                    style={[
+                      styles.planCard,
+                      isSelected && styles.planCardSelected,
+                      plan.is_popular && styles.planCardPopular,
+                    ]}
+                  >
+                    {/* Badge */}
+                    {plan.is_popular ? (
+                      <View style={styles.popularBadge}>
+                        <Sparkles size={11} color="#FFFFFF" />
+                        <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
+                      </View>
+                    ) : isCurrent ? (
+                      <View style={styles.currentBadge}>
+                        <Text style={styles.currentBadgeText}>CURRENT PLAN</Text>
+                      </View>
+                    ) : null}
+
+                    <View style={styles.planHeader}>
+                      <View>
+                        <Text style={styles.planName}>{plan.name}</Text>
+                        <Text style={styles.planDesc}>{plan.description}</Text>
+                      </View>
+                      <View style={styles.priceWrap}>
+                        <Text style={styles.planPrice}>₹{plan.price_monthly}</Text>
+                        <Text style={styles.planPeriod}>/mo</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    {/* Features List */}
+                    <View style={styles.featuresList}>
+                      {plan.features.map((feat, idx) => (
+                        <View key={idx} style={styles.featureItem}>
+                          <View style={styles.checkWrap}>
+                            <Check size={12} color="#10B981" />
                           </View>
-                        ) : null}
-                      </View>
-                      <Text style={styles.planDesc}>{p.desc}</Text>
+                          <Text style={styles.featureText}>{feat}</Text>
+                        </View>
+                      ))}
                     </View>
+                  </GlassCard>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-                    <View style={styles.priceContainer}>
-                      <Text style={styles.priceText}>{p.price}</Text>
-                      <Text style={styles.periodText}>{p.period}</Text>
-                    </View>
-                  </View>
+          {/* Guarantee Banner */}
+          <View style={styles.guaranteeRow}>
+            <ShieldCheck size={18} color="#10B981" />
+            <Text style={styles.guaranteeText}>
+              Cancel anytime. Billed monthly with multi-tenant business data security.
+            </Text>
+          </View>
 
-                  <View style={styles.divider} />
-
-                  <View style={styles.featuresList}>
-                    {p.features.map((feat, idx) => (
-                      <View key={idx} style={styles.featureItem}>
-                        <Check size={14} color={Colors.success} />
-                        <Text style={styles.featureText}>{feat}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </GlassCard>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Trust Badges */}
-        <View style={styles.trustRow}>
-          <ShieldCheck size={16} color={Colors.textSecondary} />
-          <Text style={styles.trustText}>
-            Secured via App Store & Google Play • Cancel anytime
-          </Text>
-        </View>
-
-        {/* CTA Button */}
-        <View style={styles.ctaContainer}>
-          <GlassButton
-            title={purchasing ? 'Activating Pro...' : `Start ${selectedPlan.toUpperCase()} Plan`}
-            variant="primary"
-            size="lg"
-            loading={purchasing}
-            icon={<Zap size={18} color="#FFFFFF" />}
-            onPress={handlePurchase}
-          />
-
+          {/* Upgrade CTA Button */}
           <TouchableOpacity
-            style={styles.restoreBtn}
-            onPress={() => Alert.alert('Purchases Restored', 'Your existing subscription is active.')}
+            style={styles.subscribeBtn}
+            activeOpacity={0.88}
+            onPress={handlePurchase}
+            disabled={purchasing}
           >
-            <Text style={styles.restoreText}>Restore Purchases</Text>
+            {purchasing ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Zap size={18} color="#FFFFFF" fill="#FFFFFF" />
+                <Text style={styles.subscribeBtnText}>
+                  {subscription?.tier === selectedPlan
+                    ? 'Renew / Manage Plan'
+                    : `Upgrade to ${selectedPlan.toUpperCase()}`}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
-        </View>
-      </ScrollView>
+
+          <Text style={styles.termsText}>
+            By subscribing, you agree to SoloCEO's Terms of Service and Privacy Policy. Subscriptions renew automatically unless cancelled prior to renewal date.
+          </Text>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -204,17 +222,35 @@ const styles = StyleSheet.create({
   },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.glass,
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.card,
+  },
+  restoreBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    ...Shadows.card,
+  },
+  restoreText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  loaderCenter: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -227,81 +263,109 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
   crownCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FEF3C7',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFBEB',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-    ...Shadows.glow,
+    borderWidth: 2,
+    borderColor: '#FDE68A',
+    marginBottom: 10,
   },
   heroTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     color: Colors.text,
     letterSpacing: -0.5,
   },
   heroSub: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
     marginTop: 6,
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
   },
   plansContainer: {
-    gap: 12,
-    marginVertical: 16,
+    gap: 14,
+    marginTop: 14,
   },
   planCard: {
     padding: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    ...Shadows.card,
   },
   planCardSelected: {
     borderColor: Colors.primary,
-    borderWidth: 2,
     backgroundColor: '#FFFFFF',
-    ...Shadows.glass,
+  },
+  planCardPopular: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: -10,
+    right: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  popularBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  currentBadge: {
+    position: 'absolute',
+    top: -10,
+    right: 14,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  currentBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   planHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-  },
-  planTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
   },
   planName: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
     color: Colors.text,
   },
-  badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
   planDesc: {
     fontSize: 12,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     marginTop: 2,
+    maxWidth: 180,
   },
-  priceContainer: {
-    alignItems: 'flex-end',
+  priceWrap: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
-  priceText: {
+  planPrice: {
     fontSize: 22,
     fontWeight: '800',
     color: Colors.text,
   },
-  periodText: {
-    fontSize: 11,
+  planPeriod: {
+    fontSize: 12,
+    fontWeight: '600',
     color: Colors.textMuted,
   },
   divider: {
@@ -310,39 +374,62 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
   featuresList: {
-    gap: 6,
+    gap: 8,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
+  checkWrap: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   featureText: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: Colors.text,
   },
-  trustRow: {
+  guaranteeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 12,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  guaranteeText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    flex: 1,
+    lineHeight: 16,
+  },
+  subscribeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginVertical: 12,
+    gap: 8,
+    backgroundColor: '#10B981',
+    paddingVertical: 15,
+    borderRadius: 16,
+    ...Shadows.card,
   },
-  trustText: {
-    fontSize: 12,
+  subscribeBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  termsText: {
+    fontSize: 11,
     color: Colors.textMuted,
-  },
-  ctaContainer: {
-    gap: 12,
-    marginTop: 8,
-  },
-  restoreBtn: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  restoreText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 15,
+    marginTop: 14,
   },
 });

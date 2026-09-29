@@ -36,11 +36,14 @@ async def create_automation(
     user_id: str = Depends(get_current_user_id)
 ):
     """Creates a new automated workflow rule."""
-    return await automation_engine.create_automation(
-        business_id=payload.business_id,
-        payload=payload,
-        user_id=user_id
-    )
+    try:
+        return await automation_engine.create_automation(
+            business_id=payload.business_id,
+            payload=payload,
+            user_id=user_id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/automations/templates", response_model=List[AutomationTemplateResponse])
