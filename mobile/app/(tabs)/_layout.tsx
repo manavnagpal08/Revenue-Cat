@@ -2,7 +2,6 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Home, TrendingUp, DollarSign, Sparkles, MoreHorizontal } from 'lucide-react-native';
 import { Colors, Shadows, Gradients } from '../../src/constants/theme';
 

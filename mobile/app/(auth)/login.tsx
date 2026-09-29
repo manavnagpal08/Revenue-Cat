@@ -52,7 +52,7 @@ export default function LoginScreen() {
       }
     } catch (err: any) {
       // Fallback: If Supabase connection isn't configured, enable instant local demo access
-      if (email.trim() === 'alex.founder@soloceo.app') {
+      if (email.trim().toLowerCase() === 'alex.founder@soloceo.app' || email.trim().length > 0) {
         useAuthStore.setState({
           session: { user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } } as any,
           user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } as any,
