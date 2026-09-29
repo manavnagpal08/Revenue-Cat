@@ -30,6 +30,7 @@ export interface Customer {
   company_name?: string;
   email?: string;
   phone?: string;
+  website?: string;
   address?: string;
   status: 'active' | 'inactive' | 'lead';
   notes?: string;
@@ -46,9 +47,11 @@ export interface Lead {
   customer_id?: string;
   customer?: Customer;
   title: string;
+  contact_name?: string;
   value: number;
   source: string;
   status: LeadStatus;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
   probability: number;
   notes?: string;
   last_contacted_at?: string;
@@ -57,6 +60,19 @@ export interface Lead {
 }
 
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled';
+
+export interface Payment {
+  id: string;
+  business_id: string;
+  invoice_id: string;
+  customer_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method?: string;
+  reference_number?: string;
+  notes?: string;
+  created_at?: string;
+}
 
 export interface InvoiceItem {
   id?: string;
@@ -84,6 +100,7 @@ export interface Invoice {
   status: InvoiceStatus;
   notes?: string;
   items?: InvoiceItem[];
+  payments?: Payment[];
   created_at?: string;
 }
 

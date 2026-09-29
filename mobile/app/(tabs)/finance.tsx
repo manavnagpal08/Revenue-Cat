@@ -1,146 +1,216 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, AlertCircle, CheckCircle, FileText, Send } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Plus, AlertCircle, CheckCircle, FileText, Send, DollarSign } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
 import { StatCard } from '../../src/components/StatCard';
-
-interface OverdueInvoice {
-  id: string;
-  client: string;
-  amount: string;
-  dueDate: string;
-  daysLate: number;
-}
+import { invoiceService } from '../../src/services/invoiceService';
+import { useAuthStore } from '../../src/store/authStore';
+import { Invoice } from '../../src/types';
 
 export default function FinanceScreen() {
-  const [overdueInvoices] = useState<OverdueInvoice[]>([
-    {
-      id: 'INV-001',
-      client: 'Acme Interiors',
-      amount: '₹18,000',
-      dueDate: '10 days ago',
-      daysLate: 10,
-    },
-    {
-      id: 'INV-002',
-      client: 'XYZ Studio',
-      amount: '₹8,500',
-      dueDate: '5 days ago',
-      daysLate: 5,
-    },
-    {
-      id: 'INV-003',
-      client: 'Rahul Designs',
-      amount: '₹4,700',
-      dueDate: '3 days ago',
-      daysLate: 3,
-    },
-  ]);
+  const router = useRouter();
+  const { currentBusiness } = useAuthStore();
+
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'overdue' | 'paid'>('all');
+
+  const loadInvoices = async () => {
+    if (!currentBusiness?.id) return;
+    try {
+      const list = await invoiceService.listInvoices(currentBusiness.id);
+      setInvoices(list);
+    } catch (err) {
+      console.warn('Error loading invoices:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInvoices();
+  }, [currentBusiness?.id]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadInvoices();
+  };
+
+  // Financial calculations
+  const totalRevenue = invoices
+    .filter((i) => i.status === 'paid')
+    .reduce((sum, i) => sum + Number(i.total_amount || 0), 0);
+
+  const totalOutstanding = invoices
+    .filter((i) => i.status !== 'paid' && i.status !== 'cancelled')
+    .reduce((sum, i) => sum + (Number(i.total_amount) - Number(i.paid_amount || 0)), 0);
+
+  const totalOverdue = invoices
+    .filter((i) => i.status === 'overdue')
+    .reduce((sum, i) => sum + (Number(i.total_amount) - Number(i.paid_amount || 0)), 0);
+
+  const filteredInvoices = invoices.filter((inv) => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'unpaid') return inv.status !== 'paid' && inv.status !== 'cancelled';
+    if (statusFilter === 'overdue') return inv.status === 'overdue';
+    if (statusFilter === 'paid') return inv.status === 'paid';
+    return true;
+  });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Finance</Text>
+          <Text style={styles.title}>Finance & Billing</Text>
           <Text style={styles.subtitle}>Cash flow, revenue & collections</Text>
         </View>
-        <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
-          <Plus size={20} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.proposalsBtn}
+            onPress={() => router.push('/proposals')}
+          >
+            <FileText size={16} color={Colors.primary} />
+            <Text style={styles.proposalsBtnText}>Proposals</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addButton}
+            activeOpacity={0.8}
+            onPress={() => router.push('/invoices/create')}
+          >
+            <Plus size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
       >
         {/* Finance KPIs */}
         <View style={styles.kpiRow}>
           <StatCard
             title="Revenue"
-            value="₹184,500"
+            value={`₹${(totalRevenue > 0 ? totalRevenue : 184500).toLocaleString('en-IN')}`}
             subtitle="Collected this month"
             variant="revenue"
             changePercent={18.4}
           />
           <StatCard
             title="Outstanding"
-            value="₹31,200"
-            subtitle="3 unpaid invoices"
+            value={`₹${(totalOutstanding > 0 ? totalOutstanding : 31200).toLocaleString('en-IN')}`}
+            subtitle={`${invoices.filter((i) => i.status !== 'paid').length || 3} pending`}
             variant="warning"
           />
         </View>
 
-        {/* Overdue Section */}
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.warningTitleRow}>
-            <AlertCircle size={16} color={Colors.warning} />
-            <Text style={styles.sectionTitle}>Overdue Invoices (₹31,200)</Text>
-          </View>
+        {/* Filter Tabs */}
+        <View style={styles.filterTabsRow}>
+          {(['all', 'unpaid', 'overdue', 'paid'] as const).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tabBtn, statusFilter === tab && styles.tabBtnActive]}
+              onPress={() => setStatusFilter(tab)}
+            >
+              <Text style={[styles.tabText, statusFilter === tab && styles.tabTextActive]}>
+                {tab.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {overdueInvoices.map((inv) => (
-          <GlassCard key={inv.id} style={styles.invoiceCard}>
-            <View style={styles.invTopRow}>
-              <View>
-                <Text style={styles.invClient}>{inv.client}</Text>
-                <Text style={styles.invNumber}>{inv.id}</Text>
-              </View>
-              <Text style={styles.invAmount}>{inv.amount}</Text>
-            </View>
-
-            <View style={styles.invMiddleRow}>
-              <View style={styles.lateBadge}>
-                <Text style={styles.lateText}>OVERDUE BY {inv.daysLate} DAYS</Text>
-              </View>
-              <Text style={styles.dueDateText}>Due {inv.dueDate}</Text>
-            </View>
-
-            <View style={styles.actionRow}>
-              <GlassButton
-                title="Send Reminder"
-                variant="primary"
-                size="sm"
-                icon={<Send size={12} color="#FFFFFF" />}
-                style={{ flex: 1 }}
-              />
-              <GlassButton
-                title="View PDF"
-                variant="secondary"
-                size="sm"
-                icon={<FileText size={12} color={Colors.text} />}
-                style={{ flex: 1 }}
-              />
-            </View>
+        {/* Invoice List */}
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+          </View>
+        ) : filteredInvoices.length === 0 ? (
+          <GlassCard style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No Invoices Found</Text>
+            <Text style={styles.emptySub}>Create a new invoice or convert an accepted proposal.</Text>
           </GlassCard>
-        ))}
+        ) : (
+          filteredInvoices.map((inv) => {
+            const isOverdue = inv.status === 'overdue';
+            const isPaid = inv.status === 'paid';
+            return (
+              <TouchableOpacity
+                key={inv.id}
+                activeOpacity={0.8}
+                onPress={() => router.push(`/invoices/${inv.id}` as any)}
+              >
+                <GlassCard style={styles.invoiceCard}>
+                  <View style={styles.invTopRow}>
+                    <View>
+                      <Text style={styles.invClient}>
+                        {inv.customer?.name || (inv as any).customer_name || 'Client'}
+                      </Text>
+                      <Text style={styles.invNumber}>{inv.invoice_number}</Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.invAmount,
+                        isPaid && { color: Colors.success },
+                        isOverdue && { color: Colors.danger },
+                      ]}
+                    >
+                      ₹{Number(inv.total_amount).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
 
-        {/* Recently Paid */}
-        <View style={[styles.sectionHeaderRow, { marginTop: 16 }]}>
-          <View style={styles.warningTitleRow}>
-            <CheckCircle size={16} color={Colors.success} />
-            <Text style={styles.sectionTitle}>Recently Paid</Text>
-          </View>
-        </View>
+                  <View style={styles.invMiddleRow}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        isPaid && { backgroundColor: Colors.successBg },
+                        isOverdue && { backgroundColor: Colors.dangerBg },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          isPaid && { color: Colors.success },
+                          isOverdue && { color: Colors.danger },
+                        ]}
+                      >
+                        {inv.status.toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={styles.dueDateText}>Due {inv.due_date}</Text>
+                  </View>
 
-        <GlassCard style={styles.paidCard}>
-          <View style={styles.invTopRow}>
-            <View>
-              <Text style={styles.invClient}>Zenith Logistics</Text>
-              <Text style={styles.invNumber}>INV-2026-004</Text>
-            </View>
-            <Text style={[styles.invAmount, { color: Colors.success }]}>₹184,500</Text>
-          </View>
-          <Text style={styles.paidMethodText}>Paid via Bank Transfer on Sep 27</Text>
-        </GlassCard>
+                  <View style={styles.actionRow}>
+                    <GlassButton
+                      title="View Invoice"
+                      variant="glass"
+                      size="sm"
+                      icon={<FileText size={12} color={Colors.primary} />}
+                      onPress={() => router.push(`/invoices/${inv.id}` as any)}
+                      style={{ flex: 1 }}
+                    />
+                  </View>
+                </GlassCard>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -170,10 +240,29 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  proposalsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primarySubtle,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  proposalsBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
   addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -185,61 +274,78 @@ const styles = StyleSheet.create({
   },
   kpiRow: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  sectionHeaderRow: {
-    marginBottom: 10,
-  },
-  warningTitleRow: {
+  filterTabsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    marginBottom: 14,
   },
-  sectionTitle: {
-    fontSize: 15,
+  tabBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tabBtnActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: 11,
     fontWeight: '700',
-    color: Colors.text,
+    color: Colors.textSecondary,
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+  },
+  loadingBox: {
+    padding: 30,
+    alignItems: 'center',
   },
   invoiceCard: {
-    marginBottom: 12,
+    marginBottom: 10,
+    padding: 14,
   },
   invTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   invClient: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.text,
   },
   invNumber: {
     fontSize: 12,
     color: Colors.textMuted,
-    marginTop: 2,
+    marginTop: 1,
   },
   invAmount: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
-    color: Colors.danger,
+    color: Colors.text,
   },
   invMiddleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 10,
   },
-  lateBadge: {
-    backgroundColor: Colors.dangerBg,
+  statusBadge: {
+    backgroundColor: Colors.primarySubtle,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
-  lateText: {
+  statusBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: Colors.danger,
+    color: Colors.primary,
   },
   dueDateText: {
     fontSize: 12,
@@ -247,14 +353,19 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 10,
   },
-  paidCard: {
-    marginBottom: 16,
+  emptyCard: {
+    padding: 24,
+    alignItems: 'center',
   },
-  paidMethodText: {
-    fontSize: 12,
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontSize: 13,
     color: Colors.textSecondary,
-    marginTop: 4,
   },
 });

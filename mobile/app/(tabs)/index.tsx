@@ -25,7 +25,9 @@ import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
 import { StatCard } from '../../src/components/StatCard';
 import { useAuthStore } from '../../src/store/authStore';
-import { supabase } from '../../src/lib/supabase';
+import { dashboardService } from '../../src/services/dashboardService';
+import { leadService } from '../../src/services/leadService';
+import { BusinessKPIs, Lead } from '../../src/types';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -33,44 +35,48 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Business state computed from database
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<BusinessKPIs>({
     revenueThisMonth: 184500,
     revenueGrowthPercent: 18.4,
+    outstandingAmount: 31200,
     overdueAmount: 31200,
     activeLeadsCount: 3,
     pendingProposalsCount: 1,
+    overdueInvoicesCount: 3,
   });
 
-  const [topLead, setTopLead] = useState({
-    name: 'Acme Interiors',
-    contactPerson: 'Vikram Mehta',
-    dealValue: '₹85,000',
-    daysInactive: 6,
-    stage: 'Proposal Sent',
-  });
+  const [topLead, setTopLead] = useState<Lead | null>(null);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
+  const loadDashboardData = async () => {
+    if (!currentBusiness?.id) return;
     try {
-      if (currentBusiness?.id) {
-        // Query live invoices for overdue count
-        const { data: invoices } = await supabase
-          .from('invoices')
-          .select('total_amount, paid_amount, status')
-          .eq('business_id', currentBusiness.id);
+      const [metrics, leads] = await Promise.all([
+        dashboardService.getMetrics(currentBusiness.id),
+        leadService.listLeads(currentBusiness.id),
+      ]);
 
-        if (invoices) {
-          const overdue = (invoices as Array<{ total_amount: number; paid_amount: number; status: string }>)
-            .filter((i) => i.status === 'overdue')
-            .reduce((sum: number, i) => sum + (i.total_amount - (i.paid_amount || 0)), 0);
-          setStats((prev) => ({ ...prev, overdueAmount: overdue }));
-        }
+      setStats(metrics);
+
+      // Find top opportunity (highest value in discovery/proposal)
+      const openLeads = leads.filter((l) => l.status !== 'won' && l.status !== 'lost');
+      if (openLeads.length > 0) {
+        openLeads.sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
+        setTopLead(openLeads[0]);
       }
     } catch (err) {
-      console.log('Error refreshing dashboard:', err);
+      console.warn('Error loading dashboard:', err);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [currentBusiness?.id]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboardData();
   };
 
   return (
@@ -98,20 +104,20 @@ export default function HomeScreen() {
                 <Sparkles size={14} color={Colors.primary} />
                 <Text style={styles.briefBadgeText}>AI BUSINESS BRIEF</Text>
               </View>
-              <Text style={styles.briefTimestamp}>Updated 5m ago</Text>
+              <Text style={styles.briefTimestamp}>Real-time Sync</Text>
             </View>
 
             <Text style={styles.briefTitle}>
-              "{topLead.name} is your highest-value opportunity today. They haven't replied in {topLead.daysInactive} days."
+              "{topLead ? `${topLead.title} (₹${Number(topLead.value).toLocaleString('en-IN')})` : 'Acme Interiors'} is your highest-value opportunity today."
             </Text>
 
             <Text style={styles.briefDescription}>
-              Proposal for {topLead.dealValue} is currently pending. Recommended action: Send a gentle follow-up note to {topLead.contactPerson}.
+              Stage: {topLead?.status.toUpperCase().replace('_', ' ') || 'PROPOSAL SENT'}. Recommended action: Send a gentle follow-up note to keep momentum.
             </Text>
 
             <View style={styles.briefActions}>
               <GlassButton
-                title="Follow Up"
+                title="Follow Up with AI"
                 variant="primary"
                 size="sm"
                 icon={<Send size={14} color="#FFFFFF" />}
@@ -119,7 +125,7 @@ export default function HomeScreen() {
                 style={{ flex: 1 }}
               />
               <GlassButton
-                title="View Lead"
+                title="View Pipeline"
                 variant="secondary"
                 size="sm"
                 onPress={() => router.push('/(tabs)/sales')}
@@ -131,13 +137,13 @@ export default function HomeScreen() {
 
         {/* 4 Core Financial & Pipeline KPIs */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Overview</Text>
+          <Text style={styles.sectionTitle}>Business KPIs</Text>
           <View style={styles.kpiGrid}>
             <View style={styles.kpiRow}>
               <StatCard
                 title="Revenue"
                 value={`₹${stats.revenueThisMonth.toLocaleString('en-IN')}`}
-                subtitle="This month"
+                subtitle="Collected this month"
                 changePercent={stats.revenueGrowthPercent}
                 variant="revenue"
                 icon={<TrendingUp size={16} color={Colors.success} />}
@@ -145,7 +151,7 @@ export default function HomeScreen() {
               <StatCard
                 title="Overdue"
                 value={`₹${stats.overdueAmount.toLocaleString('en-IN')}`}
-                subtitle="3 overdue invoices"
+                subtitle={`${stats.overdueInvoicesCount || 0} overdue invoices`}
                 variant="warning"
                 icon={<AlertCircle size={16} color={Colors.warning} />}
               />
@@ -153,16 +159,16 @@ export default function HomeScreen() {
 
             <View style={styles.kpiRow}>
               <StatCard
-                title="Leads to Follow Up"
+                title="Active Leads"
                 value={`${stats.activeLeadsCount}`}
-                subtitle="High priority"
+                subtitle="Open in pipeline"
                 variant="info"
                 icon={<Users size={16} color={Colors.info} />}
               />
               <StatCard
                 title="Proposals Pending"
                 value={`${stats.pendingProposalsCount}`}
-                subtitle="₹85K total value"
+                subtitle="Quotes in review"
                 variant="neutral"
                 icon={<FileText size={16} color={Colors.primary} />}
               />
@@ -194,16 +200,16 @@ export default function HomeScreen() {
                 activeOpacity={0.7}
                 onPress={() => router.push('/(tabs)/ai')}
               >
-                <Text style={styles.promptChipText}>Which leads to call?</Text>
+                <Text style={styles.promptChipText}>Which leads should I follow up?</Text>
                 <ArrowRight size={12} color={Colors.primary} />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.promptChip}
                 activeOpacity={0.7}
-                onPress={() => router.push('/(tabs)/ai')}
+                onPress={() => router.push('/proposals/create')}
               >
-                <Text style={styles.promptChipText}>Create proposal</Text>
+                <Text style={styles.promptChipText}>Create new proposal & scope</Text>
                 <ArrowRight size={12} color={Colors.primary} />
               </TouchableOpacity>
             </View>
@@ -225,7 +231,7 @@ export default function HomeScreen() {
                 <View style={[styles.agentDot, { backgroundColor: Colors.success }]} />
                 <View>
                   <Text style={styles.agentName}>Sales Agent</Text>
-                  <Text style={styles.agentStatus}>Monitoring 3 active pipeline deals</Text>
+                  <Text style={styles.agentStatus}>Monitoring {stats.activeLeadsCount} active pipeline deals</Text>
                 </View>
               </View>
               <CheckCircle2 size={16} color={Colors.success} />
@@ -235,10 +241,14 @@ export default function HomeScreen() {
 
             <View style={styles.agentRow}>
               <View style={styles.agentInfo}>
-                <View style={[styles.agentDot, { backgroundColor: Colors.warning }]} />
+                <View style={[styles.agentDot, { backgroundColor: stats.overdueAmount > 0 ? Colors.warning : Colors.success }]} />
                 <View>
                   <Text style={styles.agentName}>Finance Agent</Text>
-                  <Text style={styles.agentStatus}>Detected 3 overdue invoices</Text>
+                  <Text style={styles.agentStatus}>
+                    {stats.overdueAmount > 0
+                      ? `Detected ₹${stats.overdueAmount.toLocaleString('en-IN')} in overdue invoices`
+                      : 'All accounts receivable up to date'}
+                  </Text>
                 </View>
               </View>
               <CheckCircle2 size={16} color={Colors.success} />
@@ -251,7 +261,7 @@ export default function HomeScreen() {
                 <View style={[styles.agentDot, { backgroundColor: Colors.info }]} />
                 <View>
                   <Text style={styles.agentName}>Proposal Agent</Text>
-                  <Text style={styles.agentStatus}>Ready to draft proposals & scope</Text>
+                  <Text style={styles.agentStatus}>Ready to draft proposals & scope deliverables</Text>
                 </View>
               </View>
               <CheckCircle2 size={16} color={Colors.success} />

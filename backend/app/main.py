@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.routers import health, business, profile
+from app.routers import health, business, profile, customers, leads, invoices, proposals, dashboard
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,6 +29,11 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api")
 app.include_router(business.router, prefix="/api")
 app.include_router(profile.router, prefix="/api")
+app.include_router(customers.router, prefix="/api")
+app.include_router(leads.router, prefix="/api")
+app.include_router(invoices.router, prefix="/api")
+app.include_router(proposals.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
 
 @app.get("/")
 async def root():

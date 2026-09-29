@@ -66,8 +66,9 @@ CREATE TABLE IF NOT EXISTS public.customers (
     company_name TEXT,
     email TEXT,
     phone TEXT,
+    website TEXT,
     address TEXT,
-    status TEXT DEFAULT 'active', -- 'active', 'inactive', 'lead'
+    status TEXT DEFAULT 'active', -- 'active', 'inactive', 'archived'
     notes TEXT,
     total_revenue NUMERIC(12, 2) DEFAULT 0.00,
     last_interaction_at TIMESTAMPTZ DEFAULT NOW(),
@@ -81,11 +82,18 @@ CREATE TABLE IF NOT EXISTS public.leads (
     business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
     customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
     title TEXT NOT NULL,
+    company TEXT,
+    contact_name TEXT,
+    email TEXT,
+    phone TEXT,
     value NUMERIC(12, 2) DEFAULT 0.00,
     source TEXT DEFAULT 'direct', -- 'direct', 'website', 'referral', 'email', 'social'
-    status TEXT NOT NULL DEFAULT 'new', -- 'new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost'
+    status TEXT NOT NULL DEFAULT 'new', -- 'new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost', 'converted'
+    priority TEXT NOT NULL DEFAULT 'medium', -- 'low', 'medium', 'high'
     probability INT DEFAULT 20, -- percentage 0-100
+    expected_close_date DATE,
     notes TEXT,
+    assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     last_contacted_at TIMESTAMPTZ,
     next_followup_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),

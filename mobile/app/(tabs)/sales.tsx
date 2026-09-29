@@ -1,81 +1,142 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Sparkles, Filter, PhoneCall, ArrowUpRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Plus, Sparkles, Filter, PhoneCall, ArrowUpRight, Search, Users } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
-
-interface LeadItem {
-  id: string;
-  name: string;
-  dealValue: string;
-  stage: string;
-  priority: 'HIGH' | 'MEDIUM' | 'LOW';
-  daysAgo: number;
-}
+import { leadService } from '../../src/services/leadService';
+import { useAuthStore } from '../../src/store/authStore';
+import { Lead } from '../../src/types';
 
 export default function SalesScreen() {
-  const [leads] = useState<LeadItem[]>([
-    {
-      id: '1',
-      name: 'Acme Interiors',
-      dealValue: '₹85,000',
-      stage: 'Proposal',
-      priority: 'HIGH',
-      daysAgo: 6,
-    },
-    {
-      id: '2',
-      name: 'XYZ Studio',
-      dealValue: '₹42,000',
-      stage: 'Contacted',
-      priority: 'MEDIUM',
-      daysAgo: 3,
-    },
-    {
-      id: '3',
-      name: 'Rahul Designs',
-      dealValue: '₹25,000',
-      stage: 'New',
-      priority: 'LOW',
-      daysAgo: 8,
-    },
-  ]);
+  const router = useRouter();
+  const { currentBusiness } = useAuthStore();
 
-  const getPriorityBadge = (priority: 'HIGH' | 'MEDIUM' | 'LOW') => {
-    switch (priority) {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stageFilter, setStageFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const loadLeads = async () => {
+    if (!currentBusiness?.id) return;
+    try {
+      const list = await leadService.listLeads(
+        currentBusiness.id,
+        stageFilter === 'all' ? undefined : stageFilter,
+        priorityFilter === 'all' ? undefined : priorityFilter,
+        search || undefined
+      );
+      setLeads(list);
+    } catch (err) {
+      console.warn('Error loading leads:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLeads();
+  }, [currentBusiness?.id, stageFilter, priorityFilter, search]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadLeads();
+  };
+
+  const totalPipeline = leads.reduce((sum, l) => sum + Number(l.value || 0), 0);
+
+  const getPriorityBadge = (priority: string = 'medium') => {
+    const p = priority.toUpperCase();
+    switch (p) {
       case 'HIGH':
         return { bg: Colors.dangerBg, text: Colors.danger };
-      case 'MEDIUM':
-        return { bg: Colors.warningBg, text: Colors.warning };
       case 'LOW':
         return { bg: Colors.infoBg, text: Colors.info };
+      default:
+        return { bg: Colors.warningBg, text: Colors.warning };
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Top Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Sales Pipeline</Text>
-          <Text style={styles.subtitle}>₹152,000 active pipeline value</Text>
+          <Text style={styles.subtitle}>
+            ₹{totalPipeline.toLocaleString('en-IN')} active pipeline value
+          </Text>
         </View>
-        <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
-          <Plus size={20} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.customersBtn}
+            onPress={() => router.push('/customers')}
+          >
+            <Users size={16} color={Colors.primary} />
+            <Text style={styles.customersBtnText}>CRM</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addButton}
+            activeOpacity={0.8}
+            onPress={() => router.push('/leads/create')}
+          >
+            <Plus size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
       >
+        {/* Search */}
+        <View style={styles.searchContainer}>
+          <Search size={16} color={Colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search deals, contacts..."
+            placeholderTextColor={Colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+
+        {/* Stage Tabs Scroll */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.stageTabsScroll}
+        >
+          {['all', 'new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won'].map((s) => (
+            <TouchableOpacity
+              key={s}
+              style={[styles.stageTab, stageFilter === s && styles.stageTabActive]}
+              onPress={() => setStageFilter(s)}
+            >
+              <Text style={[styles.stageTabText, stageFilter === s && styles.stageTabTextActive]}>
+                {s.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {/* Sales AI Agent Banner */}
         <GlassCard variant="elevated" style={styles.aiSalesCard}>
           <View style={styles.aiSalesHeader}>
@@ -85,67 +146,76 @@ export default function SalesScreen() {
             </View>
           </View>
           <Text style={styles.aiSalesTitle}>
-            3 leads require immediate action to prevent deal slippage.
+            {leads.length} active opportunities tracked in Supabase.
           </Text>
           <Text style={styles.aiSalesSub}>
-            Acme Interiors hasn't replied to the proposal sent 6 days ago. Follow-up draft ready.
+            Follow up with highest-probability deals to accelerate conversion.
           </Text>
         </GlassCard>
 
-        {/* Lead List */}
+        {/* Deals List */}
         <View style={styles.listHeaderRow}>
           <Text style={styles.listHeaderTitle}>Active Deals ({leads.length})</Text>
-          <TouchableOpacity style={styles.filterButton}>
-            <Filter size={14} color={Colors.textSecondary} />
-            <Text style={styles.filterText}>Filter</Text>
-          </TouchableOpacity>
         </View>
 
-        {leads.map((lead) => {
-          const badge = getPriorityBadge(lead.priority);
-          return (
-            <GlassCard key={lead.id} style={styles.leadCard}>
-              <View style={styles.leadTopRow}>
-                <View style={styles.leadMainInfo}>
-                  <Text style={styles.leadName}>{lead.name}</Text>
-                  <View style={styles.stageTag}>
-                    <Text style={styles.stageText}>{lead.stage}</Text>
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+          </View>
+        ) : leads.length === 0 ? (
+          <GlassCard style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No Deals in this Stage</Text>
+            <Text style={styles.emptySub}>Add a new lead to start pipeline tracking.</Text>
+          </GlassCard>
+        ) : (
+          leads.map((lead) => {
+            const badge = getPriorityBadge(lead.priority);
+            return (
+              <TouchableOpacity
+                key={lead.id}
+                activeOpacity={0.8}
+                onPress={() => router.push(`/leads/${lead.id}` as any)}
+              >
+                <GlassCard style={styles.leadCard}>
+                  <View style={styles.leadTopRow}>
+                    <View style={styles.leadMainInfo}>
+                      <Text style={styles.leadName}>{lead.title}</Text>
+                      <View style={styles.stageTag}>
+                        <Text style={styles.stageText}>{lead.status.toUpperCase()}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.dealValue}>
+                      ₹{Number(lead.value || 0).toLocaleString('en-IN')}
+                    </Text>
                   </View>
-                </View>
-                <Text style={styles.dealValue}>{lead.dealValue}</Text>
-              </View>
 
-              <View style={styles.leadBottomRow}>
-                <View style={[styles.priorityBadge, { backgroundColor: badge.bg }]}>
-                  <Text style={[styles.priorityText, { color: badge.text }]}>
-                    {lead.priority} PRIORITY
-                  </Text>
-                </View>
+                  <View style={styles.leadBottomRow}>
+                    <View style={[styles.priorityBadge, { backgroundColor: badge.bg }]}>
+                      <Text style={[styles.priorityText, { color: badge.text }]}>
+                        {(lead.priority || 'MEDIUM').toUpperCase()} PRIORITY
+                      </Text>
+                    </View>
 
-                <Text style={styles.lastActiveText}>
-                  {lead.daysAgo} days without reply
-                </Text>
-              </View>
+                    <Text style={styles.companySub}>
+                      {(lead as any).company || lead.contact_name || 'Direct Lead'}
+                    </Text>
+                  </View>
 
-              <View style={styles.actionRow}>
-                <GlassButton
-                  title="Follow Up"
-                  variant="primary"
-                  size="sm"
-                  icon={<PhoneCall size={12} color="#FFFFFF" />}
-                  style={{ flex: 1 }}
-                />
-                <GlassButton
-                  title="Details"
-                  variant="secondary"
-                  size="sm"
-                  icon={<ArrowUpRight size={12} color={Colors.text} />}
-                  style={{ flex: 1 }}
-                />
-              </View>
-            </GlassCard>
-          );
-        })}
+                  <View style={styles.actionRow}>
+                    <GlassButton
+                      title="View Deal"
+                      variant="glass"
+                      size="sm"
+                      icon={<ArrowUpRight size={12} color={Colors.primary} />}
+                      onPress={() => router.push(`/leads/${lead.id}` as any)}
+                      style={{ flex: 1 }}
+                    />
+                  </View>
+                </GlassCard>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -175,10 +245,29 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  customersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primarySubtle,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  customersBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
   addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -188,8 +277,50 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 90,
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    height: 42,
+    marginBottom: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text,
+  },
+  stageTabsScroll: {
+    gap: 8,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  stageTab: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  stageTabActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  stageTabText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+  },
+  stageTabTextActive: {
+    color: '#FFFFFF',
+  },
   aiSalesCard: {
-    marginVertical: 12,
+    marginVertical: 10,
     borderLeftWidth: 4,
     borderLeftColor: Colors.primary,
     ...Shadows.glass,
@@ -221,10 +352,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   listHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 10,
     marginBottom: 10,
   },
   listHeaderTitle: {
@@ -232,48 +360,43 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
   },
-  filterButton: {
-    flexDirection: 'row',
+  loadingBox: {
+    padding: 30,
     alignItems: 'center',
-    gap: 4,
-  },
-  filterText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textSecondary,
   },
   leadCard: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   leadTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   leadMainInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    flex: 1,
+    marginRight: 8,
   },
   leadName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.text,
+    marginBottom: 4,
   },
   stageTag: {
+    alignSelf: 'flex-start',
     backgroundColor: Colors.primarySubtle,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   stageText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
     color: Colors.primary,
   },
   dealValue: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     color: Colors.text,
   },
@@ -281,7 +404,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   priorityBadge: {
     paddingHorizontal: 8,
@@ -292,12 +415,25 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
   },
-  lastActiveText: {
+  companySub: {
     fontSize: 12,
     color: Colors.textMuted,
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 10,
+  },
+  emptyCard: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
 });

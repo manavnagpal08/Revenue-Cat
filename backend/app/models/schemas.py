@@ -63,18 +63,29 @@ class BusinessResponse(BusinessBase):
     settings: Optional[BusinessSettingsBase] = None
     role: Optional[str] = "owner"
 
-# --- CRM Schemas ---
+# --- CUSTOMER SCHEMAS ---
 class CustomerBase(BaseModel):
     name: str
     company_name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    website: Optional[str] = None
     address: Optional[str] = None
-    status: str = "active"
+    status: str = "active" # active, inactive, archived
     notes: Optional[str] = None
 
 class CustomerCreate(CustomerBase):
     business_id: str
+
+class CustomerUpdate(BaseModel):
+    name: Optional[str] = None
+    company_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
 
 class CustomerResponse(CustomerBase):
     id: str
@@ -82,13 +93,21 @@ class CustomerResponse(CustomerBase):
     total_revenue: float = 0.0
     last_interaction_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
+# --- LEAD & ACTIVITY SCHEMAS ---
 class LeadBase(BaseModel):
     title: str
+    company: Optional[str] = None
+    contact_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
     value: float = 0.0
-    source: str = "direct"
-    status: str = "new"
+    source: str = "direct" # direct, website, referral, email, social
+    status: str = "new" # new, contacted, qualified, proposal, negotiation, won, lost, converted
+    priority: str = "medium" # low, medium, high
     probability: int = 20
+    expected_close_date: Optional[date] = None
     notes: Optional[str] = None
     customer_id: Optional[str] = None
     next_followup_at: Optional[datetime] = None
@@ -96,62 +115,190 @@ class LeadBase(BaseModel):
 class LeadCreate(LeadBase):
     business_id: str
 
+class LeadUpdate(BaseModel):
+    title: Optional[str] = None
+    company: Optional[str] = None
+    contact_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    value: Optional[float] = None
+    source: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    probability: Optional[int] = None
+    expected_close_date: Optional[date] = None
+    notes: Optional[str] = None
+    customer_id: Optional[str] = None
+    next_followup_at: Optional[datetime] = None
+
+class LeadActivityBase(BaseModel):
+    activity_type: str # call, email, meeting, note, followup, whatsapp, proposal
+    title: str
+    description: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = {}
+
+class LeadActivityCreate(LeadActivityBase):
+    business_id: str
+    lead_id: Optional[str] = None
+    customer_id: Optional[str] = None
+
+class LeadActivityResponse(LeadActivityBase):
+    id: str
+    business_id: str
+    lead_id: Optional[str] = None
+    customer_id: Optional[str] = None
+    created_at: Optional[datetime] = None
+
 class LeadResponse(LeadBase):
     id: str
     business_id: str
     last_contacted_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    activities: Optional[List[LeadActivityResponse]] = []
 
-# --- Finance Schemas ---
+class LeadConvertRequest(BaseModel):
+    create_deal: Optional[bool] = False
+    deal_title: Optional[str] = None
+
+# --- INVOICE & PAYMENT SCHEMAS ---
 class InvoiceItemBase(BaseModel):
     description: str
     quantity: float = 1.0
     unit_price: float = 0.0
+    tax_rate: Optional[float] = 0.0
+    discount: Optional[float] = 0.0
     total_price: float = 0.0
 
-class InvoiceBase(BaseModel):
+class InvoiceCreate(BaseModel):
+    business_id: str
     customer_id: str
+    invoice_number: Optional[str] = None
+    issue_date: Optional[date] = None
+    due_date: date
+    notes: Optional[str] = None
+    tax_rate: Optional[float] = 18.0
+    discount_amount: Optional[float] = 0.0
+    items: List[InvoiceItemBase]
+
+class InvoiceUpdate(BaseModel):
+    due_date: Optional[date] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    discount_amount: Optional[float] = None
+    items: Optional[List[InvoiceItemBase]] = None
+
+class PaymentCreate(BaseModel):
+    business_id: str
+    customer_id: Optional[str] = None
+    amount: float
+    payment_date: Optional[date] = None
+    payment_method: str = "bank_transfer" # bank_transfer, upi, card, cash, other
+    reference_number: Optional[str] = None
+    notes: Optional[str] = None
+
+class PaymentResponse(BaseModel):
+    id: str
+    business_id: str
+    invoice_id: str
+    customer_id: str
+    amount: float
+    payment_date: date
+    payment_method: str
+    reference_number: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+class InvoiceResponse(BaseModel):
+    id: str
+    business_id: str
+    customer_id: str
+    customer_name: Optional[str] = None
     invoice_number: str
     issue_date: date
     due_date: date
     subtotal: float
-    tax_rate: float = 18.0
-    tax_amount: float = 0.0
-    discount_amount: float = 0.0
+    tax_rate: float
+    tax_amount: float
+    discount_amount: float
     total_amount: float
-    status: str = "draft"
+    paid_amount: float
+    remaining_balance: float = 0.0
+    status: str # draft, sent, paid, partially_paid, overdue, cancelled
     notes: Optional[str] = None
+    items: Optional[List[InvoiceItemBase]] = []
+    payments: Optional[List[PaymentResponse]] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
-class InvoiceCreate(InvoiceBase):
+# --- PROPOSAL SCHEMAS ---
+class ProposalItemBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    cost: float = 0.0
+
+class ProposalCreate(BaseModel):
     business_id: str
-    items: List[InvoiceItemBase] = []
+    customer_id: Optional[str] = None
+    lead_id: Optional[str] = None
+    title: str
+    project_overview: Optional[str] = None
+    deliverables: Optional[List[Dict[str, Any]]] = []
+    timeline: Optional[str] = None
+    valid_until: Optional[date] = None
+    items: Optional[List[ProposalItemBase]] = []
+    total_value: Optional[float] = None
 
-class InvoiceResponse(InvoiceBase):
+class ProposalUpdate(BaseModel):
+    title: Optional[str] = None
+    project_overview: Optional[str] = None
+    deliverables: Optional[List[Dict[str, Any]]] = None
+    timeline: Optional[str] = None
+    status: Optional[str] = None
+    valid_until: Optional[date] = None
+    total_value: Optional[float] = None
+    items: Optional[List[ProposalItemBase]] = None
+
+class ProposalResponse(BaseModel):
     id: str
     business_id: str
-    paid_amount: float = 0.0
-    created_at: Optional[datetime] = None
-
-# --- Proposal Schemas ---
-class ProposalBase(BaseModel):
+    customer_id: Optional[str] = None
+    customer_name: Optional[str] = None
+    lead_id: Optional[str] = None
     title: str
     project_overview: Optional[str] = None
     deliverables: Optional[List[Dict[str, Any]]] = []
     timeline: Optional[str] = None
     total_value: float = 0.0
-    status: str = "draft"
+    status: str # draft, sent, viewed, accepted, rejected, expired
     valid_until: Optional[date] = None
-    customer_id: Optional[str] = None
-    lead_id: Optional[str] = None
-
-class ProposalCreate(ProposalBase):
-    business_id: str
-
-class ProposalResponse(ProposalBase):
-    id: str
-    business_id: str
     pdf_url: Optional[str] = None
+    items: Optional[List[ProposalItemBase]] = []
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+# --- CUSTOMER DETAIL AGGREGATE ---
+class CustomerDetailResponse(CustomerResponse):
+    leads: List[LeadResponse] = []
+    invoices: List[InvoiceResponse] = []
+    proposals: List[ProposalResponse] = []
+    activities: List[LeadActivityResponse] = []
+
+# --- DASHBOARD METRICS ---
+class DashboardMetricsResponse(BaseModel):
+    revenue_this_month: float
+    revenue_growth_percent: float
+    outstanding_amount: float
+    overdue_amount: float
+    active_leads_count: int
+    pipeline_total_value: float
+    pending_proposals_count: int
+    overdue_invoices_count: int
+    currency_symbol: str = "₹"
+    top_lead: Optional[Dict[str, Any]] = None
+    recent_invoices: List[InvoiceResponse] = []
+    recent_leads: List[LeadResponse] = []
+    recent_activities: List[LeadActivityResponse] = []
 
 # --- AI Orchestration Schemas ---
 class AIQueryRequest(BaseModel):
@@ -161,7 +308,7 @@ class AIQueryRequest(BaseModel):
     conversation_id: Optional[str] = None
 
 class AIActionCard(BaseModel):
-    type: str # 'lead_action', 'invoice_reminder', 'proposal_draft', 'kpi_summary'
+    type: str # lead_action, invoice_reminder, proposal_draft, kpi_summary
     title: str
     description: str
     primary_action_label: Optional[str] = None
@@ -169,7 +316,7 @@ class AIActionCard(BaseModel):
 
 class AIQueryResponse(BaseModel):
     conversation_id: str
-    agent: str # 'supervisor', 'sales', 'finance', 'proposal'
+    agent: str # supervisor, sales, finance, proposal
     message: str
     structured_data: Optional[Dict[str, Any]] = None
     action_cards: Optional[List[AIActionCard]] = []
