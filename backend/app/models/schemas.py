@@ -517,6 +517,43 @@ class AutomationAnalyticsResponse(BaseModel):
     runs_timeline: List[Dict[str, Any]] = []
     top_automations: List[Dict[str, Any]] = []
 
+class AutomationStepPreview(BaseModel):
+    step_number: int
+    title: str
+    description: str
+    type: str # trigger, action, agent, condition
+    agent_badge: Optional[str] = None
+    requires_approval: Optional[bool] = False
+
+class AutomationAIBuilderRequest(BaseModel):
+    prompt: str
+    business_id: str
+
+class AutomationAIBuilderResponse(BaseModel):
+    success: bool
+    summary: str
+    suggested_workflow: AutomationCreate
+    steps: List[AutomationStepPreview]
+    warnings: List[str] = []
+
+class AutomationLimitsResponse(BaseModel):
+    business_id: str
+    plan_tier: str
+    active_automations_count: int
+    limit: int
+    can_create: bool
+    upgrade_required: bool
+
+class AutomationLogResponse(BaseModel):
+    id: str
+    business_id: str
+    workflow_id: Optional[str] = None
+    run_id: Optional[str] = None
+    event_type: str
+    message: str
+    metadata: Dict[str, Any] = {}
+    created_at: datetime
+
 class NotificationCreate(BaseModel):
     business_id: str
     title: str

@@ -50,6 +50,13 @@ export const Shadows = {
     shadowRadius: 8,
     elevation: 1,
   },
+  sm: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
   glow: {
     shadowColor: '#6366F1',
     shadowOffset: { width: 0, height: 4 },

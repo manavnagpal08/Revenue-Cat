@@ -152,6 +152,36 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
         "type": "READ",
         "handler": lambda business_id: __import__("app.services.integrations.manager", fromlist=["integration_manager"]).integration_manager.list_integrations_status(business_id),
         "parameters": {}
+    },
+
+    # Workflow & Automation Tools
+    "get_automations": {
+        "name": "get_automations",
+        "description": "List all active, paused workflows and plan limits.",
+        "type": "READ",
+        "handler": lambda business_id: __import__("app.services.ai.tools.automation_tools", fromlist=["get_automations_tool"]).get_automations_tool(business_id),
+        "parameters": {}
+    },
+    "get_automation_failures": {
+        "name": "get_automation_failures",
+        "description": "Retrieve recent failed automation runs and errors for debugging.",
+        "type": "READ",
+        "handler": lambda business_id: __import__("app.services.ai.tools.automation_tools", fromlist=["get_automation_failures_tool"]).get_automation_failures_tool(business_id),
+        "parameters": {}
+    },
+    "pause_automation": {
+        "name": "pause_automation",
+        "description": "Pause an automated workflow by ID or name.",
+        "type": "WRITE",
+        "handler": lambda business_id, name_or_id: __import__("app.services.ai.tools.automation_tools", fromlist=["pause_automation_tool"]).pause_automation_tool(business_id, name_or_id),
+        "parameters": {"name_or_id": "required string"}
+    },
+    "run_automation": {
+        "name": "run_automation",
+        "description": "Manually trigger immediate execution of a workflow by ID or name.",
+        "type": "WRITE",
+        "handler": lambda business_id, name_or_id: __import__("app.services.ai.tools.automation_tools", fromlist=["run_automation_tool"]).run_automation_tool(business_id, name_or_id),
+        "parameters": {"name_or_id": "required string"}
     }
 }
 

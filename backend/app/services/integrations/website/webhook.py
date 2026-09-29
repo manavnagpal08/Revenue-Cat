@@ -156,6 +156,29 @@ class WebsiteLeadsIntegrationProvider(IntegrationProvider):
                 logger.warning(f"Error persisting webhook lead in Supabase: {e}")
 
         _local_leads[lead_id] = lead_record
+
+        # 3. Trigger active automations matching 'website_lead_received'
+        try:
+            from app.services.automation.engine import automation_engine
+            active_autos = await automation_engine.list_automations(business_id=business_id)
+            for a in active_autos:
+                if a.get("enabled") and a.get("trigger_type") == "website_lead_received":
+                    await automation_engine.execute_automation_run(
+                        automation_id=a["id"],
+                        business_id=business_id,
+                        event_data={
+                            "lead_id": lead_id,
+                            "customer_id": cust_id,
+                            "contact_name": payload.name,
+                            "email": payload.email,
+                            "value": payload.estimated_budget or 25000.0,
+                            "notes": payload.message
+                        },
+                        event_dedup_key=f"website_lead_{lead_id}_{a['id']}"
+                    )
+        except Exception as e:
+            logger.warning(f"Error triggering automation for website lead: {e}")
+
         return {
             "success": True,
             "lead_id": lead_id,
@@ -163,3 +186,4 @@ class WebsiteLeadsIntegrationProvider(IntegrationProvider):
             "lead": lead_record,
             "message": f"Inbound lead '{lead_title}' captured and added to pipeline."
         }
+

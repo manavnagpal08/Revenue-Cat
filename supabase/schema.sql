@@ -506,7 +506,19 @@ CREATE TABLE IF NOT EXISTS public.automation_templates (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 20.5 INDEXES FOR AUTOMATIONS
+-- 20.5 AUTOMATION LOGS (Granular audit trail)
+CREATE TABLE IF NOT EXISTS public.automation_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    workflow_id UUID REFERENCES public.automations(id) ON DELETE CASCADE,
+    run_id UUID REFERENCES public.automation_runs(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL, -- 'trigger_detected', 'condition_evaluated', 'agent_executed', 'action_prepared', 'action_executed', 'notification_created', 'action_failed'
+    message TEXT NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 20.6 INDEXES FOR AUTOMATIONS
 CREATE INDEX IF NOT EXISTS idx_automations_business ON public.automations(business_id, status);
 CREATE INDEX IF NOT EXISTS idx_automations_trigger ON public.automations(trigger_type, enabled);
 CREATE INDEX IF NOT EXISTS idx_automation_runs_biz ON public.automation_runs(business_id, started_at DESC);
@@ -514,12 +526,15 @@ CREATE INDEX IF NOT EXISTS idx_automation_runs_auto ON public.automation_runs(au
 CREATE INDEX IF NOT EXISTS idx_automation_actions_run ON public.automation_actions(automation_run_id);
 CREATE INDEX IF NOT EXISTS idx_automation_actions_status ON public.automation_actions(business_id, status);
 CREATE INDEX IF NOT EXISTS idx_automation_templates_cat ON public.automation_templates(category, is_system_template);
+CREATE INDEX IF NOT EXISTS idx_automation_logs_biz ON public.automation_logs(business_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_automation_logs_run ON public.automation_logs(run_id, created_at ASC);
 
--- 20.6 ROW LEVEL SECURITY FOR AUTOMATIONS
+-- 20.7 ROW LEVEL SECURITY FOR AUTOMATIONS
 ALTER TABLE public.automations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.automation_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Business automations access" ON public.automations
     FOR ALL USING (public.is_business_member(business_id));
@@ -532,6 +547,9 @@ CREATE POLICY "Business automation actions access" ON public.automation_actions
 
 CREATE POLICY "Business automation templates access" ON public.automation_templates
     FOR ALL USING (business_id IS NULL OR public.is_business_member(business_id));
+
+CREATE POLICY "Business automation logs access" ON public.automation_logs
+    FOR ALL USING (public.is_business_member(business_id));
 
 -- ==============================================================================
 -- 21. BILLING & SUBSCRIPTION MONETIZATION (PHASE 7)

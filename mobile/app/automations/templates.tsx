@@ -5,31 +5,29 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
   ArrowLeft,
-  Search,
+  FileText,
   Clock,
-  AlertCircle,
-  Mail,
-  Zap,
-  Bot,
-  Layers,
+  Flame,
+  BarChart3,
+  Calendar,
+  CheckCircle2,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react-native';
 import { GlassCard } from '../../src/components/GlassCard';
-import { Colors, Shadows } from '../../src/constants/theme';
+import { Colors } from '../../src/constants/theme';
 import { automationService, AutomationTemplate } from '../../src/services/automationService';
 
-const CATEGORIES = ['All', 'Sales', 'Finance', 'Operations', 'Proposals', 'Customer'];
+const CATEGORIES = ['All', 'Sales', 'Finance', 'Operations'];
 
 export default function AutomationTemplatesScreen() {
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
   const [templates, setTemplates] = useState<AutomationTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,105 +48,104 @@ export default function AutomationTemplatesScreen() {
     }
   };
 
-  const filteredTemplates = templates.filter((t) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q);
-  });
-
-  const getTemplateIcon = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'sales':
-        return <Clock size={18} color="#4F46E5" />;
-      case 'finance':
-        return <AlertCircle size={18} color="#D97706" />;
-      case 'operations':
-        return <Zap size={18} color="#2563EB" />;
-      case 'customer':
-        return <Mail size={18} color="#059669" />;
+  const getTemplateIcon = (triggerType: string) => {
+    switch (triggerType) {
+      case 'invoice_overdue':
+        return <FileText size={18} color="#059669" />;
+      case 'lead_inactive':
+        return <Clock size={18} color="#D97706" />;
+      case 'website_lead_received':
+        return <Flame size={18} color="#2563EB" />;
+      case 'daily_summary':
+        return <BarChart3 size={18} color="#7C3AED" />;
+      case 'calendar_event_upcoming':
+        return <Calendar size={18} color="#D97706" />;
+      case 'lead_qualified':
+        return <CheckCircle2 size={18} color="#059669" />;
       default:
-        return <Bot size={18} color="#4F46E5" />;
+        return <Sparkles size={18} color="#059669" />;
+    }
+  };
+
+  const getIconBg = (triggerType: string) => {
+    switch (triggerType) {
+      case 'invoice_overdue':
+        return '#ECFDF5';
+      case 'lead_inactive':
+        return '#FEF3C7';
+      case 'website_lead_received':
+        return '#EFF6FF';
+      case 'daily_summary':
+        return '#F5F3FF';
+      case 'calendar_event_upcoming':
+        return '#FEF3C7';
+      default:
+        return '#ECFDF5';
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
+      {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={Colors.text} />
+          <ArrowLeft size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.title}>Automation Templates</Text>
-        <View style={{ width: 38 }} />
+        <Text style={styles.headerTitle}>Automation Templates</Text>
+        <View style={{ width: 36 }} />
       </View>
 
-      {/* Search Input */}
-      <View style={styles.searchWrap}>
-        <Search size={16} color={Colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search automation templates..."
-          placeholderTextColor={Colors.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+      {/* Category Filter Pills matching Screen 9 */}
+      <View style={styles.categoriesRow}>
+        {CATEGORIES.map((cat) => (
+          <TouchableOpacity
+            key={cat}
+            style={[styles.catPill, selectedCategory === cat && styles.catPillActive]}
+            onPress={() => setSelectedCategory(cat)}
+          >
+            <Text style={[styles.catText, selectedCategory === cat && styles.catTextActive]}>
+              {cat}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Category Pills */}
-      <View style={styles.pillsWrap}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
-          {CATEGORIES.map((cat) => (
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {loading ? (
+          <View style={styles.loaderCenter}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loaderText}>Loading templates...</Text>
+          </View>
+        ) : (
+          templates.map((tpl) => (
             <TouchableOpacity
-              key={cat}
-              style={[styles.pill, selectedCategory === cat && styles.pillActive]}
-              onPress={() => setSelectedCategory(cat)}
+              key={tpl.id}
+              activeOpacity={0.85}
+              onPress={() => {
+                router.push({
+                  pathname: '/automations/create',
+                  params: { prompt: `${tpl.name}: ${tpl.description}` },
+                } as any);
+              }}
             >
-              <Text style={[styles.pillText, selectedCategory === cat && styles.pillTextActive]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {loading ? (
-        <View style={styles.loaderCenter}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
-      ) : (
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-          {filteredTemplates.map((tpl) => (
-            <GlassCard key={tpl.id} style={styles.tplCard}>
-              <View style={styles.tplHeader}>
-                <View style={styles.tplLeft}>
-                  <View style={styles.iconBox}>{getTemplateIcon(tpl.category)}</View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.tplName}>{tpl.name}</Text>
-                    <View style={styles.badgeRow}>
-                      <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryBadgeText}>{tpl.category.toUpperCase()}</Text>
-                      </View>
-                    </View>
+              <GlassCard style={styles.templateCard}>
+                <View style={styles.cardRow}>
+                  <View style={[styles.iconWrap, { backgroundColor: getIconBg(tpl.trigger_type) }]}>
+                    {getTemplateIcon(tpl.trigger_type)}
                   </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.templateTitle}>{tpl.name}</Text>
+                    <Text style={styles.templateDesc} numberOfLines={2}>
+                      {tpl.description}
+                    </Text>
+                  </View>
+                  <ChevronRight size={16} color="#94A3B8" />
                 </View>
-              </View>
-
-              <Text style={styles.tplDesc}>{tpl.description}</Text>
-
-              <TouchableOpacity
-                style={styles.useBtn}
-                activeOpacity={0.88}
-                onPress={() =>
-                  router.push(`/automations/create?templateId=${tpl.id}` as any)
-                }
-              >
-                <Text style={styles.useBtnText}>Use Template</Text>
-                <ChevronRight size={14} color="#10B981" />
-              </TouchableOpacity>
-            </GlassCard>
-          ))}
-        </ScrollView>
-      )}
+              </GlassCard>
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -156,152 +153,99 @@ export default function AutomationTemplatesScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.card,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 10,
-    ...Shadows.card,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.text,
-  },
-  pillsWrap: {
-    marginBottom: 12,
-  },
-  pillsScroll: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  pillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  pillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  pillTextActive: {
-    color: '#FFFFFF',
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  loaderCenter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tplCard: {
-    padding: 16,
-    ...Shadows.card,
-  },
-  tplHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  tplLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tplName: {
-    fontSize: 15,
+  headerTitle: {
+    fontSize: 16,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#0F172A',
   },
-  badgeRow: {
+  categoriesRow: {
     flexDirection: 'row',
-    marginTop: 3,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  categoryBadge: {
-    backgroundColor: Colors.primarySubtle,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+  catPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
   },
-  categoryBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.5,
+  catPillActive: {
+    backgroundColor: '#059669',
   },
-  tplDesc: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 17,
-    marginTop: 10,
+  catText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  catTextActive: {
+    color: '#FFFFFF',
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  templateCard: {
+    padding: 16,
+    borderRadius: 16,
     marginBottom: 12,
   },
-  useBtn: {
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#ECFDF5',
+    gap: 12,
   },
-  useBtnText: {
-    fontSize: 12,
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardContent: {
+    flex: 1,
+  },
+  templateTitle: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#10B981',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  templateDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16,
+  },
+  loaderCenter: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  loaderText: {
+    fontSize: 13,
+    color: '#64748B',
   },
 });

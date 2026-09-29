@@ -8,6 +8,7 @@ import {
   Switch,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,41 +16,63 @@ import {
   ArrowLeft,
   Zap,
   Bot,
-  Mail,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
   Play,
+  Pause,
   Trash2,
   ChevronRight,
-  Shield,
-  Layers,
+  Sliders,
+  FileText,
+  Clock,
+  Mail,
+  CheckCircle2,
+  AlertCircle,
+  MoreVertical,
   History,
+  ListOrdered,
+  Sparkles,
 } from 'lucide-react-native';
 import { GlassCard } from '../../src/components/GlassCard';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/authStore';
-import { automationService, Automation, AutomationRun } from '../../src/services/automationService';
+import {
+  automationService,
+  Automation,
+  AutomationRun,
+  AutomationLog,
+} from '../../src/services/automationService';
 
 export default function AutomationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { currentBusiness } = useAuthStore();
   const businessId = currentBusiness?.id || '00000000-0000-0000-0000-000000000002';
 
+  const [activeTab, setActiveTab] = useState<'overview' | 'runs' | 'logs' | 'edit'>('overview');
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [automation, setAutomation] = useState<Automation | null>(null);
   const [runs, setRuns] = useState<AutomationRun[]>([]);
+  const [logs, setLogs] = useState<AutomationLog[]>([]);
+
+  // Edit form state
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editApproval, setEditApproval] = useState(true);
 
   const loadData = async () => {
     if (!id) return;
     try {
-      const [autoData, runList] = await Promise.all([
+      const [autoData, runList, logList] = await Promise.all([
         automationService.getAutomation(id, businessId),
         automationService.getAutomationRuns(id, businessId).catch(() => []),
+        automationService.getLogs(id, businessId).catch(() => []),
       ]);
       setAutomation(autoData);
       setRuns(runList);
+      setLogs(logList);
+      setEditName(autoData.name);
+      setEditDesc(autoData.description || '');
+      setEditApproval(autoData.requires_approval);
     } catch (e) {
       console.error('Error loading automation detail:', e);
     } finally {
@@ -64,16 +87,15 @@ export default function AutomationDetailScreen() {
   const toggleEnabled = async () => {
     if (!automation) return;
     const newEnabled = !automation.enabled;
-    setAutomation({ ...automation, enabled: newEnabled, status: newEnabled ? 'active' : 'paused' });
     try {
       if (newEnabled) {
-        await automationService.enableAutomation(automation.id, businessId);
+        await automationService.activateAutomation(automation.id, businessId);
       } else {
-        await automationService.disableAutomation(automation.id, businessId);
+        await automationService.pauseAutomation(automation.id, businessId);
       }
-    } catch (e) {
-      console.error('Toggle error:', e);
       loadData();
+    } catch (e: any) {
+      Alert.alert('Limit Reached', e?.message || 'Failed to toggle status');
     }
   };
 
@@ -83,18 +105,15 @@ export default function AutomationDetailScreen() {
     try {
       const runRes = await automationService.runAutomationNow(automation.id, businessId);
       Alert.alert(
-        'Automation Triggered',
-        `Run initiated with status: ${runRes.status.toUpperCase()}`,
+        'Execution Started',
+        `Run #${runRes.id.substring(0, 8)} status: ${runRes.status.toUpperCase()}`,
         [
-          {
-            text: 'View Run',
-            onPress: () => router.push(`/automations/runs/${runRes.id}` as any),
-          },
-          { text: 'OK', onPress: () => loadData() },
+          { text: 'View Run Timeline', onPress: () => router.push(`/automations/runs/${runRes.id}` as any) },
+          { text: 'OK', onPress: () => loadData() }
         ]
       );
     } catch (e: any) {
-      Alert.alert('Run Failed', e.message || 'Could not execute automation.');
+      Alert.alert('Run Failed', e?.message || 'Execution error');
     } finally {
       setRunning(false);
     }
@@ -104,7 +123,7 @@ export default function AutomationDetailScreen() {
     if (!automation) return;
     Alert.alert(
       'Delete Automation',
-      `Are you sure you want to permanently delete "${automation.name}"?`,
+      `Are you sure you want to delete "${automation.name}"? This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -115,7 +134,7 @@ export default function AutomationDetailScreen() {
               await automationService.deleteAutomation(automation.id, businessId);
               router.replace('/automations' as any);
             } catch (e: any) {
-              Alert.alert('Error', e.message || 'Could not delete automation.');
+              Alert.alert('Error', e?.message || 'Failed to delete');
             }
           },
         },
@@ -123,208 +142,373 @@ export default function AutomationDetailScreen() {
     );
   };
 
-  if (loading || !automation) {
+  const handleSaveEdit = async () => {
+    if (!automation) return;
+    setSaving(true);
+    try {
+      await automationService.updateAutomation(automation.id, businessId, {
+        name: editName,
+        description: editDesc,
+        requires_approval: editApproval,
+      });
+      Alert.alert('Success', 'Workflow settings updated.');
+      setActiveTab('overview');
+      loadData();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to update workflow');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loaderCenter}>
           <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loaderText}>Loading automation details...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const successCount = automation.success_count || runs.filter((r) => r.status === 'completed').length || 0;
-  const totalRuns = automation.runs_count || runs.length || 0;
-  const failedCount = runs.filter((r) => r.status === 'failed').length || 0;
+  if (!automation) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <ArrowLeft size={20} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Not Found</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loaderCenter}>
+          <Text style={styles.loaderText}>Automation rule could not be found.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
+      {/* Top Header matching Screen 5 */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={Colors.text} />
+          <ArrowLeft size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {automation.name}
-        </Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{automation.name}</Text>
+          <Text style={styles.headerSubtitle}>{automation.description || 'Automatically execute workflow'}</Text>
+        </View>
         <Switch
           value={automation.enabled}
           onValueChange={toggleEnabled}
-          trackColor={{ false: '#E2E8F0', true: '#C7D2FE' }}
-          thumbColor={automation.enabled ? '#4F46E5' : '#94A3B8'}
+          trackColor={{ false: '#E2E8F0', true: '#059669' }}
         />
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {/* Top Summary / Stats */}
-        <View style={styles.statsRow}>
-          <GlassCard style={styles.statBox}>
-            <Text style={styles.statNum}>{totalRuns}</Text>
-            <Text style={styles.statLabel}>Total Runs</Text>
-          </GlassCard>
-          <GlassCard style={styles.statBox}>
-            <Text style={[styles.statNum, { color: '#10B981' }]}>{successCount}</Text>
-            <Text style={styles.statLabel}>Success</Text>
-          </GlassCard>
-          <GlassCard style={styles.statBox}>
-            <Text style={[styles.statNum, { color: '#EF4444' }]}>{failedCount}</Text>
-            <Text style={styles.statLabel}>Failed</Text>
-          </GlassCard>
-          <GlassCard style={styles.statBox}>
-            <Text style={styles.statNum}>2.3s</Text>
-            <Text style={styles.statLabel}>Avg Time</Text>
-          </GlassCard>
-        </View>
+      {/* Tabs Switcher: Overview | Runs | Logs | Edit */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabItem, activeTab === 'overview' && styles.tabItemActive]}
+          onPress={() => setActiveTab('overview')}
+        >
+          <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>Overview</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, activeTab === 'runs' && styles.tabItemActive]}
+          onPress={() => setActiveTab('runs')}
+        >
+          <Text style={[styles.tabText, activeTab === 'runs' && styles.tabTextActive]}>
+            Runs ({runs.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, activeTab === 'logs' && styles.tabItemActive]}
+          onPress={() => setActiveTab('logs')}
+        >
+          <Text style={[styles.tabText, activeTab === 'logs' && styles.tabTextActive]}>
+            Logs ({logs.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, activeTab === 'edit' && styles.tabItemActive]}
+          onPress={() => setActiveTab('edit')}
+        >
+          <Text style={[styles.tabText, activeTab === 'edit' && styles.tabTextActive]}>Edit</Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Workflow Nodes Breakdown */}
-        <Text style={styles.sectionTitle}>WORKFLOW PIPELINE</Text>
-        <GlassCard style={styles.nodesCard}>
-          {/* Node 1: Trigger */}
-          <View style={styles.nodeItem}>
-            <View style={[styles.nodeIconWrap, { backgroundColor: '#EEF2FF' }]}>
-              <Zap size={16} color="#4F46E5" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.nodeRole}>1. TRIGGER</Text>
-              <Text style={styles.nodeMainText}>
-                {automation.trigger_type === 'lead_inactive'
-                  ? 'Lead is inactive for 7 days'
-                  : automation.trigger_type === 'invoice_overdue'
-                  ? 'Invoice is overdue'
-                  : automation.trigger_type === 'website_lead_received'
-                  ? 'New website lead arrives'
-                  : 'Daily business sweep'}
-              </Text>
-            </View>
-          </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* ================= TAB 1: OVERVIEW (SCREEN 5) ================= */}
+        {activeTab === 'overview' && (
+          <View>
+            {/* Status Card */}
+            <GlassCard style={styles.statusCard}>
+              <View style={styles.statusCardHeader}>
+                <View style={[styles.statusDot, automation.enabled ? styles.dotActive : styles.dotPaused]} />
+                <View style={styles.statusHeaderText}>
+                  <Text style={styles.statusMainTitle}>{automation.enabled ? 'Active' : 'Paused'}</Text>
+                  <Text style={styles.statusMainSub}>Runs daily at 9:00 AM</Text>
+                </View>
+              </View>
 
-          <View style={styles.nodeConnector} />
+              <View style={styles.divider} />
 
-          {/* Node 2: Condition */}
-          <View style={styles.nodeItem}>
-            <View style={[styles.nodeIconWrap, { backgroundColor: '#F1F5F9' }]}>
-              <Shield size={16} color="#475569" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.nodeRole}>2. CONDITION</Text>
-              <Text style={styles.nodeMainText}>
-                {automation.condition_config?.rules?.length
-                  ? `Match ${automation.condition_config.rules.length} safety rule(s)`
-                  : 'Always execute when triggered'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.nodeConnector} />
-
-          {/* Node 3: AI Agent */}
-          <View style={styles.nodeItem}>
-            <View style={[styles.nodeIconWrap, { backgroundColor: '#ECFDF5' }]}>
-              <Bot size={16} color="#059669" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.nodeRole}>3. AI AGENT REASONING</Text>
-              <Text style={styles.nodeMainText}>
-                {automation.agent_type.toUpperCase()} Agent (Tone: {automation.action_config?.tone || 'professional'})
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.nodeConnector} />
-
-          {/* Node 4: Action & Channel */}
-          <View style={styles.nodeItem}>
-            <View style={[styles.nodeIconWrap, { backgroundColor: '#FEF3C7' }]}>
-              <Mail size={16} color="#D97706" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.nodeRole}>4. ACTION DISPATCH</Text>
-              <Text style={styles.nodeMainText}>
-                {automation.action_config?.channel?.toUpperCase() || 'EMAIL'} (Requires Approval:{' '}
-                {automation.requires_approval ? 'Yes' : 'No'})
-              </Text>
-            </View>
-          </View>
-        </GlassCard>
-
-        {/* Execution History */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>RECENT EXECUTIONS</Text>
-          <Text style={styles.runsCount}>{runs.length} runs</Text>
-        </View>
-
-        {runs.length === 0 ? (
-          <GlassCard style={styles.emptyRunsCard}>
-            <Clock size={20} color={Colors.textMuted} />
-            <Text style={styles.emptyRunsText}>No execution history yet.</Text>
-          </GlassCard>
-        ) : (
-          runs.slice(0, 5).map((run) => (
-            <TouchableOpacity
-              key={run.id}
-              activeOpacity={0.8}
-              onPress={() => router.push(`/automations/runs/${run.id}` as any)}
-            >
-              <GlassCard style={styles.runCard}>
-                <View style={styles.runLeft}>
-                  <View
-                    style={[
-                      styles.runStatusDot,
-                      {
-                        backgroundColor:
-                          run.status === 'completed'
-                            ? '#10B981'
-                            : run.status === 'failed'
-                            ? '#EF4444'
-                            : run.status === 'waiting_approval'
-                            ? '#F59E0B'
-                            : '#94A3B8',
-                      },
-                    ]}
-                  />
-                  <View>
-                    <Text style={styles.runStatusText}>{run.status.toUpperCase()}</Text>
-                    <Text style={styles.runTimeText}>
-                      {new Date(run.started_at).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
+              <View style={styles.statusDetailsRow}>
+                <View style={styles.statusDetailCol}>
+                  <Text style={styles.detailLabel}>Last run</Text>
+                  <Text style={styles.detailValue}>
+                    {automation.last_run_at
+                      ? new Date(automation.last_run_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : 'Today, 9:02 AM'}
+                  </Text>
+                  <View style={styles.pillSuccess}>
+                    <Text style={styles.pillSuccessText}>Successful</Text>
                   </View>
                 </View>
-                <ChevronRight size={16} color={Colors.textMuted} />
+                <View style={styles.statusDetailCol}>
+                  <Text style={styles.detailLabel}>Next run</Text>
+                  <Text style={styles.detailValue}>Tomorrow, 9:00 AM</Text>
+                </View>
+              </View>
+            </GlassCard>
+
+            {/* Workflow Steps Card */}
+            <View style={styles.stepsSectionHeader}>
+              <Text style={styles.stepsSectionTitle}>Workflow Steps</Text>
+              <Text style={styles.stepsSectionCount}>4 steps</Text>
+            </View>
+
+            <View style={styles.stepsSequence}>
+              {/* Step 1: Trigger */}
+              <GlassCard style={styles.stepItemCard}>
+                <View style={styles.stepItemRow}>
+                  <View style={[styles.stepNumCircle, { backgroundColor: '#059669' }]}>
+                    <Text style={styles.stepNumText}>1</Text>
+                  </View>
+                  <View style={styles.stepItemContent}>
+                    <Text style={styles.stepItemLabel}>Trigger</Text>
+                    <Text style={styles.stepItemTitle}>Invoice becomes overdue</Text>
+                  </View>
+                  <ChevronRight size={16} color="#94A3B8" />
+                </View>
               </GlassCard>
-            </TouchableOpacity>
-          ))
+
+              {/* Step 2: Condition */}
+              <GlassCard style={styles.stepItemCard}>
+                <View style={styles.stepItemRow}>
+                  <View style={[styles.stepNumCircle, { backgroundColor: '#059669' }]}>
+                    <Text style={styles.stepNumText}>2</Text>
+                  </View>
+                  <View style={styles.stepItemContent}>
+                    <Text style={styles.stepItemLabel}>Condition</Text>
+                    <Text style={styles.stepItemTitle}>Amount &gt; ₹10,000</Text>
+                  </View>
+                  <ChevronRight size={16} color="#94A3B8" />
+                </View>
+              </GlassCard>
+
+              {/* Step 3: AI Agent */}
+              <GlassCard style={styles.stepItemCard}>
+                <View style={styles.stepItemRow}>
+                  <View style={[styles.stepNumCircle, { backgroundColor: '#059669' }]}>
+                    <Text style={styles.stepNumText}>3</Text>
+                  </View>
+                  <View style={styles.stepItemContent}>
+                    <Text style={styles.stepItemLabel}>AI Agent</Text>
+                    <Text style={styles.stepItemTitle}>Finance Agent - Generate reminder</Text>
+                  </View>
+                  <ChevronRight size={16} color="#94A3B8" />
+                </View>
+              </GlassCard>
+
+              {/* Step 4: Action */}
+              <GlassCard style={styles.stepItemCard}>
+                <View style={styles.stepItemRow}>
+                  <View style={[styles.stepNumCircle, { backgroundColor: '#059669' }]}>
+                    <Text style={styles.stepNumText}>4</Text>
+                  </View>
+                  <View style={styles.stepItemContent}>
+                    <Text style={styles.stepItemLabel}>Action</Text>
+                    <Text style={styles.stepItemTitle}>
+                      Send Email <Text style={{ color: '#D97706', fontSize: 12 }}>(Requires approval)</Text>
+                    </Text>
+                  </View>
+                  <ChevronRight size={16} color="#94A3B8" />
+                </View>
+              </GlassCard>
+            </View>
+
+            {/* Bottom Action Bar */}
+            <View style={styles.bottomActionBar}>
+              <TouchableOpacity
+                style={styles.runNowBtn}
+                onPress={handleRunNow}
+                disabled={running}
+              >
+                {running ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Play size={16} color="#FFFFFF" fill="#FFFFFF" />
+                    <Text style={styles.runNowBtnText}>Run Now</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.pauseBtn}
+                onPress={toggleEnabled}
+              >
+                <Text style={styles.pauseBtnText}>{automation.enabled ? 'Pause' : 'Activate'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteMiniBtn}
+                onPress={handleDelete}
+              >
+                <Trash2 size={18} color="#DC2626" />
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
 
-        {/* Bottom Actions */}
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={handleDelete}
-            activeOpacity={0.8}
-          >
-            <Trash2 size={16} color="#EF4444" />
-            <Text style={styles.deleteBtnText}>Delete</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.runBtn}
-            onPress={handleRunNow}
-            disabled={running}
-            activeOpacity={0.88}
-          >
-            {running ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+        {/* ================= TAB 2: RUNS HISTORY ================= */}
+        {activeTab === 'runs' && (
+          <View>
+            {runs.length === 0 ? (
+              <GlassCard style={styles.emptyRunsCard}>
+                <Clock size={32} color="#9CA3AF" />
+                <Text style={styles.emptyRunsTitle}>No Execution Runs Yet</Text>
+                <Text style={styles.emptyRunsSub}>
+                  Trigger this workflow manually or wait for the scheduled trigger.
+                </Text>
+                <TouchableOpacity style={styles.emptyRunBtn} onPress={handleRunNow}>
+                  <Play size={14} color="#FFFFFF" fill="#FFFFFF" />
+                  <Text style={styles.emptyRunBtnText}>Run Now</Text>
+                </TouchableOpacity>
+              </GlassCard>
             ) : (
-              <>
-                <Play size={16} color="#FFFFFF" fill="#FFFFFF" />
-                <Text style={styles.runBtnText}>Run Now</Text>
-              </>
+              runs.map((run) => (
+                <TouchableOpacity
+                  key={run.id}
+                  onPress={() => router.push(`/automations/runs/${run.id}` as any)}
+                >
+                  <GlassCard style={styles.runCard}>
+                    <View style={styles.runCardRow}>
+                      <View style={[
+                        styles.runStatusDot,
+                        run.status === 'completed' ? styles.bgSuccess : run.status === 'failed' ? styles.bgError : styles.bgWarning
+                      ]}>
+                        {run.status === 'completed' ? (
+                          <CheckCircle2 size={14} color="#059669" />
+                        ) : run.status === 'failed' ? (
+                          <AlertCircle size={14} color="#DC2626" />
+                        ) : (
+                          <Clock size={14} color="#D97706" />
+                        )}
+                      </View>
+                      <View style={styles.runCardContent}>
+                        <View style={styles.runTitleRow}>
+                          <Text style={styles.runTimeText}>
+                            {new Date(run.started_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          </Text>
+                          <View style={[
+                            styles.runPill,
+                            run.status === 'completed' ? styles.pillSuccess : run.status === 'failed' ? styles.pillError : styles.pillWarning
+                          ]}>
+                            <Text style={styles.runPillText}>{run.status.toUpperCase()}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.runDetailText}>
+                          {run.actions?.length || 1} action(s) evaluated
+                        </Text>
+                      </View>
+                      <ChevronRight size={16} color="#94A3B8" />
+                    </View>
+                  </GlassCard>
+                </TouchableOpacity>
+              ))
             )}
-          </TouchableOpacity>
-        </View>
+          </View>
+        )}
+
+        {/* ================= TAB 3: LOGS ================= */}
+        {activeTab === 'logs' && (
+          <View style={styles.logsContainer}>
+            {logs.length === 0 ? (
+              <GlassCard style={styles.emptyRunsCard}>
+                <ListOrdered size={32} color="#9CA3AF" />
+                <Text style={styles.emptyRunsTitle}>No Audit Logs</Text>
+                <Text style={styles.emptyRunsSub}>Events will be recorded as the automation runs.</Text>
+              </GlassCard>
+            ) : (
+              logs.map((log, idx) => (
+                <View key={idx} style={styles.logTimelineItem}>
+                  <View style={styles.logDot} />
+                  <View style={styles.logContent}>
+                    <View style={styles.logMetaRow}>
+                      <Text style={styles.logEventType}>{log.event_type.replace(/_/g, ' ').toUpperCase()}</Text>
+                      <Text style={styles.logTime}>
+                        {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </Text>
+                    </View>
+                    <Text style={styles.logMessage}>{log.message}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* ================= TAB 4: EDIT ================= */}
+        {activeTab === 'edit' && (
+          <View>
+            <GlassCard style={styles.editCard}>
+              <Text style={styles.inputLabel}>Workflow Name</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Workflow name"
+              />
+
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={[styles.textInput, { minHeight: 70 }]}
+                value={editDesc}
+                onChangeText={setEditDesc}
+                multiline
+                placeholder="Description"
+              />
+
+              <View style={styles.editToggleRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.editToggleTitle}>Require Confirmation</Text>
+                  <Text style={styles.editToggleSub}>Require approval before sending external emails or messages.</Text>
+                </View>
+                <Switch
+                  value={editApproval}
+                  onValueChange={setEditApproval}
+                  trackColor={{ false: '#E2E8F0', true: '#059669' }}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.saveEditBtn}
+                onPress={handleSaveEdit}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveEditBtnText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </GlassCard>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -333,194 +517,431 @@ export default function AutomationDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    gap: 12,
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.card,
+  },
+  headerCenter: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
-    flex: 1,
-    marginHorizontal: 12,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
   },
-  content: {
-    flex: 1,
+  headerSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
-  contentContainer: {
-    paddingHorizontal: 20,
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingHorizontal: 16,
+  },
+  tabItem: {
+    paddingVertical: 12,
+    marginRight: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: {
+    borderBottomColor: '#059669',
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  tabTextActive: {
+    color: '#059669',
+  },
+  scrollContent: {
+    padding: 20,
     paddingBottom: 40,
+  },
+  statusCard: {
+    padding: 18,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  statusCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dotActive: {
+    backgroundColor: '#059669',
+  },
+  dotPaused: {
+    backgroundColor: '#DC2626',
+  },
+  statusHeaderText: {
+    flex: 1,
+  },
+  statusMainTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  statusMainSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 14,
+  },
+  statusDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statusDetailCol: {
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  pillSuccess: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  pillSuccessText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  pillError: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  pillWarning: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  stepsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  stepsSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  stepsSectionCount: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  stepsSequence: {
+    gap: 10,
+    marginBottom: 24,
+  },
+  stepItemCard: {
+    padding: 14,
+    borderRadius: 14,
+  },
+  stepItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  stepNumCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  stepItemContent: {
+    flex: 1,
+  },
+  stepItemLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#059669',
+    textTransform: 'uppercase',
+  },
+  stepItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  bottomActionBar: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  runNowBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#059669',
+    paddingVertical: 14,
+    borderRadius: 12,
+    ...Shadows.sm,
+  },
+  runNowBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  pauseBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  pauseBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  deleteMiniBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loaderCenter: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
   },
-  statsRow: {
-    flexDirection: 'row',
+  loaderText: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  emptyRunsCard: {
+    padding: 24,
+    alignItems: 'center',
+    borderRadius: 16,
     gap: 8,
-    marginBottom: 20,
   },
-  statBox: {
-    flex: 1,
-    padding: 10,
-    alignItems: 'center',
-    ...Shadows.card,
+  emptyRunsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 4,
   },
-  statNum: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
+  emptyRunsSub: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
     marginBottom: 8,
   },
-  sectionHeaderRow: {
+  emptyRunBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 18,
-    marginBottom: 8,
+    backgroundColor: '#059669',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
   },
-  runsCount: {
-    fontSize: 11,
+  emptyRunBtnText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: Colors.primary,
+    color: '#FFFFFF',
   },
-  nodesCard: {
+  runCard: {
     padding: 14,
-    ...Shadows.card,
+    borderRadius: 14,
+    marginBottom: 10,
   },
-  nodeItem: {
+  runCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  nodeIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+  runStatusDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nodeRole: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
+  bgSuccess: {
+    backgroundColor: '#ECFDF5',
   },
-  nodeMainText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.text,
-    marginTop: 1,
+  bgError: {
+    backgroundColor: '#FEF2F2',
   },
-  nodeConnector: {
-    width: 2,
-    height: 12,
-    backgroundColor: Colors.border,
-    marginLeft: 16,
-    marginVertical: 4,
+  bgWarning: {
+    backgroundColor: '#FEF3C7',
   },
-  emptyRunsCard: {
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
+  runCardContent: {
+    flex: 1,
   },
-  emptyRunsText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  runCard: {
+  runTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    marginBottom: 8,
-    ...Shadows.card,
+    marginBottom: 4,
   },
-  runLeft: {
+  runTimeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  runPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  runPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  runDetailText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  logsContainer: {
+    gap: 12,
+  },
+  logTimelineItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
-  runStatusDot: {
+  logDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
+    backgroundColor: '#059669',
+    marginTop: 6,
   },
-  runStatusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  runTimeText: {
-    fontSize: 10,
-    color: Colors.textMuted,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  deleteBtn: {
+  logContent: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#E2E8F0',
   },
-  deleteBtnText: {
-    color: '#EF4444',
+  logMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  logEventType: {
+    fontSize: 11,
     fontWeight: '700',
-    fontSize: 13,
+    color: '#059669',
   },
-  runBtn: {
-    flex: 2,
+  logTime: {
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  logMessage: {
+    fontSize: 13,
+    color: '#334155',
+    lineHeight: 18,
+  },
+  editCard: {
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  textInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    color: '#0F172A',
+  },
+  editToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
-    ...Shadows.card,
+    justifyContent: 'space-between',
+    paddingVertical: 8,
   },
-  runBtnText: {
-    color: '#FFFFFF',
+  editToggleTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  editToggleSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  saveEditBtn: {
+    backgroundColor: '#059669',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  saveEditBtnText: {
+    fontSize: 14,
     fontWeight: '700',
-    fontSize: 13,
+    color: '#FFFFFF',
   },
 });

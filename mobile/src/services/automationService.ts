@@ -63,6 +63,43 @@ export interface AutomationTemplate {
   is_system_template: boolean;
 }
 
+export interface AutomationStepPreview {
+  step_number: number;
+  title: string;
+  description: string;
+  type: string;
+  agent_badge?: string;
+  requires_approval?: boolean;
+}
+
+export interface AutomationAIBuilderResponse {
+  success: boolean;
+  summary: string;
+  suggested_workflow: Automation;
+  steps: AutomationStepPreview[];
+  warnings: string[];
+}
+
+export interface AutomationLimits {
+  business_id: string;
+  plan_tier: string;
+  active_automations_count: number;
+  limit: number;
+  can_create: boolean;
+  upgrade_required: boolean;
+}
+
+export interface AutomationLog {
+  id: string;
+  business_id: string;
+  workflow_id?: string;
+  run_id?: string;
+  event_type: string;
+  message: string;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
 export interface AutomationAnalytics {
   total_runs: number;
   successful_runs: number;
@@ -98,51 +135,11 @@ class AutomationService {
   }
 
   async getAutomations(businessId: string): Promise<Automation[]> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/automations?business_id=${businessId}`, {
-        headers: this.getHeaders(),
-      });
-      if (!res.ok) throw new Error(`Failed to fetch automations: ${res.status}`);
-      return await res.json();
-    } catch (e) {
-      console.warn('Fallback automations:', e);
-      return [
-        {
-          id: 'auto-fallback-1',
-          business_id: businessId,
-          name: 'Follow up inactive leads',
-          description: 'Auto-send personalized follow-up emails to leads who haven\'t replied in 7 days.',
-          trigger_type: 'lead_inactive',
-          trigger_config: { inactivity_days: 7 },
-          condition_config: { rules: [{ field: 'lead.status', operator: '!=', value: 'lost' }] },
-          agent_type: 'sales',
-          action_config: { channel: 'email', action_type: 'send_email', tone: 'friendly' },
-          status: 'active',
-          enabled: true,
-          requires_approval: true,
-          runs_count: 124,
-          success_count: 112,
-          last_run_at: new Date().toISOString(),
-        },
-        {
-          id: 'auto-fallback-2',
-          business_id: businessId,
-          name: 'Invoice reminders',
-          description: 'Send automated payment reminders when an invoice becomes overdue.',
-          trigger_type: 'invoice_overdue',
-          trigger_config: { days_past_due: 1 },
-          condition_config: { rules: [{ field: 'invoice.status', operator: '==', value: 'overdue' }] },
-          agent_type: 'finance',
-          action_config: { channel: 'email', action_type: 'send_email', tone: 'professional' },
-          status: 'active',
-          enabled: true,
-          requires_approval: true,
-          runs_count: 48,
-          success_count: 46,
-          last_run_at: new Date().toISOString(),
-        }
-      ];
-    }
+    const res = await fetch(`${API_BASE_URL}/api/automations?business_id=${businessId}`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to fetch automations: ${res.status}`);
+    return await res.json();
   }
 
   async getAutomation(id: string, businessId: string): Promise<Automation> {
@@ -159,7 +156,31 @@ class AutomationService {
       headers: this.getHeaders(),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('Failed to create automation');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to create automation' }));
+      throw new Error(err.detail || 'Failed to create automation');
+    }
+    return await res.json();
+  }
+
+  async buildWithAI(prompt: string, businessId: string): Promise<AutomationAIBuilderResponse> {
+    const res = await fetch(`${API_BASE_URL}/api/automations/ai-builder`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ prompt, business_id: businessId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'AI Builder failed' }));
+      throw new Error(err.detail || 'AI Builder failed');
+    }
+    return await res.json();
+  }
+
+  async getLimits(businessId: string): Promise<AutomationLimits> {
+    const res = await fetch(`${API_BASE_URL}/api/automations/limits?business_id=${businessId}`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch automation limits');
     return await res.json();
   }
 
@@ -182,21 +203,24 @@ class AutomationService {
     return await res.json();
   }
 
-  async enableAutomation(id: string, businessId: string): Promise<Automation> {
-    const res = await fetch(`${API_BASE_URL}/api/automations/${id}/enable?business_id=${businessId}`, {
+  async activateAutomation(id: string, businessId: string): Promise<Automation> {
+    const res = await fetch(`${API_BASE_URL}/api/automations/${id}/activate?business_id=${businessId}`, {
       method: 'POST',
       headers: this.getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to enable automation');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to activate automation' }));
+      throw new Error(err.detail || 'Failed to activate automation');
+    }
     return await res.json();
   }
 
-  async disableAutomation(id: string, businessId: string): Promise<Automation> {
-    const res = await fetch(`${API_BASE_URL}/api/automations/${id}/disable?business_id=${businessId}`, {
+  async pauseAutomation(id: string, businessId: string): Promise<Automation> {
+    const res = await fetch(`${API_BASE_URL}/api/automations/${id}/pause?business_id=${businessId}`, {
       method: 'POST',
       headers: this.getHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to disable automation');
+    if (!res.ok) throw new Error('Failed to pause automation');
     return await res.json();
   }
 
@@ -217,11 +241,37 @@ class AutomationService {
     return await res.json();
   }
 
+  async getAllRuns(businessId: string, status?: string): Promise<AutomationRun[]> {
+    const url = status && status !== 'all'
+      ? `${API_BASE_URL}/api/automations/runs?business_id=${businessId}&status=${status.toLowerCase()}`
+      : `${API_BASE_URL}/api/automations/runs?business_id=${businessId}`;
+    const res = await fetch(url, { headers: this.getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch all runs');
+    return await res.json();
+  }
+
   async getRunDetail(runId: string, businessId: string): Promise<AutomationRun> {
     const res = await fetch(`${API_BASE_URL}/api/automation-runs/${runId}?business_id=${businessId}`, {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch run detail');
+    return await res.json();
+  }
+
+  async getLogs(automationId: string, businessId: string, runId?: string): Promise<AutomationLog[]> {
+    const url = runId
+      ? `${API_BASE_URL}/api/automations/${automationId}/logs?business_id=${businessId}&run_id=${runId}`
+      : `${API_BASE_URL}/api/automations/${automationId}/logs?business_id=${businessId}`;
+    const res = await fetch(url, { headers: this.getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch logs');
+    return await res.json();
+  }
+
+  async getPendingApprovals(businessId: string): Promise<AutomationAction[]> {
+    const res = await fetch(`${API_BASE_URL}/api/automation-actions/pending?business_id=${businessId}`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch pending actions');
     return await res.json();
   }
 
@@ -261,36 +311,11 @@ class AutomationService {
   }
 
   async getAnalytics(businessId: string): Promise<AutomationAnalytics> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/automations/analytics?business_id=${businessId}`, {
-        headers: this.getHeaders(),
-      });
-      if (!res.ok) throw new Error('Failed to fetch analytics');
-      return await res.json();
-    } catch {
-      return {
-        total_runs: 124,
-        successful_runs: 98,
-        failed_runs: 12,
-        skipped_runs: 14,
-        waiting_approval_runs: 4,
-        success_rate_percent: 79.0,
-        active_automations_count: 5,
-        paused_automations_count: 1,
-        runs_timeline: [
-          { date: 'Sep 1', successful: 20, failed: 5 },
-          { date: 'Sep 8', successful: 45, failed: 8 },
-          { date: 'Sep 15', successful: 75, failed: 10 },
-          { date: 'Sep 22', successful: 98, failed: 12 },
-          { date: 'Sep 30', successful: 124, failed: 12 },
-        ],
-        top_automations: [
-          { id: '1', name: 'Follow up inactive leads', runs_count: 48, status: 'active' },
-          { id: '2', name: 'Invoice reminders', runs_count: 32, status: 'active' },
-          { id: '3', name: 'New website lead flow', runs_count: 21, status: 'active' },
-        ]
-      };
-    }
+    const res = await fetch(`${API_BASE_URL}/api/automations/analytics?business_id=${businessId}`, {
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch analytics');
+    return await res.json();
   }
 
   async getNotifications(businessId: string): Promise<NotificationItem[]> {
@@ -298,7 +323,7 @@ class AutomationService {
       const res = await fetch(`${API_BASE_URL}/api/notifications?business_id=${businessId}`, {
         headers: this.getHeaders(),
       });
-      if (!res.ok) throw new Error('Failed to fetch notifications');
+      if (!res.ok) return [];
       return await res.json();
     } catch {
       return [];

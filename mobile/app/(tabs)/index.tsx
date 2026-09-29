@@ -220,6 +220,80 @@ export default function HomeScreen() {
           </GlassCard>
         </View>
 
+        {/* Automations Summary Widget (Screen 10) */}
+        <View style={styles.sectionContainer}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/automations' as any)}
+          >
+            <GlassCard style={styles.automationsWidgetCard}>
+              <View style={styles.automationsWidgetRow}>
+                <View style={styles.automationsWidgetLeft}>
+                  <View style={styles.autoWidgetIconWrap}>
+                    <Sparkles size={16} color="#059669" />
+                  </View>
+                  <View>
+                    <Text style={styles.autoWidgetTitle}>Automations</Text>
+                    <Text style={styles.autoWidgetSubtitle}>3 / 5 active</Text>
+                  </View>
+                </View>
+                <View style={styles.autoWidgetRight}>
+                  <View style={styles.runningPill}>
+                    <Text style={styles.runningPillText}>1 running now</Text>
+                  </View>
+                  <ArrowRight size={16} color="#94A3B8" />
+                </View>
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
+        </View>
+
+        {/* Recent Automation Activity Section (Screen 10) */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Recent Automation Activity</Text>
+            <TouchableOpacity onPress={() => router.push('/automations/runs' as any)}>
+              <Text style={styles.seeAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          <GlassCard style={styles.activityCard}>
+            <View style={styles.activityItem}>
+              <View style={[styles.activityDot, { backgroundColor: '#ECFDF5' }]}>
+                <CheckCircle2 size={14} color="#059669" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Overdue Invoice Reminder</Text>
+                <Text style={styles.activitySub}>Ran at 9:02 AM • 2 emails ready</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.activityItem}>
+              <View style={[styles.activityDot, { backgroundColor: '#ECFDF5' }]}>
+                <CheckCircle2 size={14} color="#059669" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Website Lead Processing</Text>
+                <Text style={styles.activitySub}>Ran at 1:15 PM • 1 new lead created</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.activityItem}>
+              <View style={[styles.activityDot, { backgroundColor: '#FEF2F2' }]}>
+                <AlertCircle size={14} color="#DC2626" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Inactive Lead Follow-up</Text>
+                <Text style={styles.activitySub}>Failed at 10:30 AM • Integration error</Text>
+              </View>
+            </View>
+          </GlassCard>
+        </View>
+
         {/* AI Agent Team Status */}
         <View style={[styles.sectionContainer, { marginBottom: 90 }]}>
           <View style={styles.sectionHeaderRow}>
@@ -432,5 +506,83 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.borderLight,
     marginVertical: 4,
+  },
+  automationsWidgetCard: {
+    padding: 14,
+    borderRadius: 16,
+  },
+  automationsWidgetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  automationsWidgetLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  autoWidgetIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  autoWidgetTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  autoWidgetSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  autoWidgetRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  runningPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  runningPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#D97706',
+  },
+  activityCard: {
+    padding: 12,
+    borderRadius: 16,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 6,
+  },
+  activityDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  activitySub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
   },
 });

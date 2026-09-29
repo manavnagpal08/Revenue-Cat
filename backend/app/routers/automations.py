@@ -10,16 +10,22 @@ from app.models.schemas import (
     AutomationTemplateResponse,
     AutomationActionApprovalRequest,
     AutomationAnalyticsResponse,
+    AutomationAIBuilderRequest,
+    AutomationAIBuilderResponse,
+    AutomationLimitsResponse,
+    AutomationLogResponse
 )
 from app.core.security import get_current_user_id
 from app.services.automation.engine import automation_engine
 from app.services.automation.approvals import approval_service
 from app.services.automation.templates import get_system_templates, get_template_by_id
 from app.services.automation.triggers import get_supported_triggers
+from app.services.automation.ai_builder import ai_automation_builder
 
 logger = logging.getLogger("soloceo_automations_router")
 
 router = APIRouter(prefix="", tags=["Automations & Workflow Engine"])
+
 
 @router.get("/automations", response_model=List[AutomationResponse])
 async def list_automations(
@@ -35,7 +41,7 @@ async def create_automation(
     payload: AutomationCreate,
     user_id: str = Depends(get_current_user_id)
 ):
-    """Creates a new automated workflow rule."""
+    """Creates a new automated workflow rule with plan limits validation."""
     try:
         return await automation_engine.create_automation(
             business_id=payload.business_id,
@@ -44,6 +50,24 @@ async def create_automation(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/automations/ai-builder", response_model=AutomationAIBuilderResponse)
+async def build_automation_with_ai(
+    payload: AutomationAIBuilderRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Transforms natural language prompt into a structured, validated workflow configuration."""
+    return ai_automation_builder.parse_prompt(prompt=payload.prompt, business_id=payload.business_id)
+
+
+@router.get("/automations/limits", response_model=AutomationLimitsResponse)
+async def get_automation_limits(
+    business_id: str = Query(..., description="Active workspace ID"),
+    user_id: str = Depends(get_current_user_id)
+):
+    """Returns active automation count versus subscription tier limits."""
+    return await automation_engine.get_limits(business_id=business_id)
 
 
 @router.get("/automations/templates", response_model=List[AutomationTemplateResponse])
@@ -73,6 +97,16 @@ async def get_analytics(
 ):
     """Returns automation run analytics and success rates."""
     return await automation_engine.get_analytics(business_id=business_id)
+
+
+@router.get("/automations/runs", response_model=List[AutomationRunResponse])
+async def get_all_runs(
+    business_id: str = Query(..., description="Active workspace ID"),
+    status: Optional[str] = Query(None, description="Filter by status (successful, failed, running)"),
+    user_id: str = Depends(get_current_user_id)
+):
+    """Lists all past execution runs for the business workspace."""
+    return await automation_engine.get_all_runs(business_id=business_id, status_filter=status)
 
 
 @router.get("/automations/{id}", response_model=AutomationResponse)
@@ -120,23 +154,28 @@ async def delete_automation(
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.post("/automations/{id}/activate", response_model=AutomationResponse)
 @router.post("/automations/{id}/enable", response_model=AutomationResponse)
-async def enable_automation(
+async def activate_automation(
     id: str,
     business_id: str = Query(...),
     user_id: str = Depends(get_current_user_id)
 ):
-    """Enables an automation."""
-    return await automation_engine.set_enabled(automation_id=id, business_id=business_id, enabled=True)
+    """Activates/enables an automation with limit check."""
+    try:
+        return await automation_engine.set_enabled(automation_id=id, business_id=business_id, enabled=True)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/automations/{id}/pause", response_model=AutomationResponse)
 @router.post("/automations/{id}/disable", response_model=AutomationResponse)
-async def disable_automation(
+async def pause_automation(
     id: str,
     business_id: str = Query(...),
     user_id: str = Depends(get_current_user_id)
 ):
-    """Disables/pauses an automation."""
+    """Pauses/disables an automation."""
     return await automation_engine.set_enabled(automation_id=id, business_id=business_id, enabled=False)
 
 
@@ -168,6 +207,17 @@ async def list_automation_runs(
     return await automation_engine.get_runs_for_automation(automation_id=id, business_id=business_id)
 
 
+@router.get("/automations/{id}/logs", response_model=List[AutomationLogResponse])
+async def list_automation_logs(
+    id: str,
+    business_id: str = Query(...),
+    run_id: Optional[str] = Query(None),
+    user_id: str = Depends(get_current_user_id)
+):
+    """Returns granular audit log events for an automation or specific run."""
+    return await automation_engine.get_logs(business_id=business_id, automation_id=id, run_id=run_id)
+
+
 @router.get("/automation-runs/{run_id}", response_model=AutomationRunResponse)
 async def get_run_detail(
     run_id: str,
@@ -179,6 +229,15 @@ async def get_run_detail(
     if not run:
         raise HTTPException(status_code=404, detail="Automation run not found")
     return run
+
+
+@router.get("/automation-actions/pending", response_model=List[AutomationActionResponse])
+async def get_pending_actions(
+    business_id: str = Query(...),
+    user_id: str = Depends(get_current_user_id)
+):
+    """Returns all automated actions waiting for human approval."""
+    return await approval_service.get_pending_actions(business_id=business_id)
 
 
 @router.post("/automation-actions/{id}/approve")

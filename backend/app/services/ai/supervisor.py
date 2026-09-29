@@ -40,6 +40,10 @@ class AISupervisor:
         """
         q = query.lower()
 
+        # Automation & Workflow intent
+        if any(w in q for w in ["automation", "automate", "workflow", "trigger", "runs"]):
+            return "AUTOMATIONS"
+
         # External Integration intent (Email, Calendar, WhatsApp, Integrations)
         if any(w in q for w in ["gmail", "email", "calendar", "meeting", "schedule", "whatsapp", "integration", "connect"]):
             return "INTEGRATIONS"
@@ -131,7 +135,78 @@ class AISupervisor:
         intent = self.route_intent(query)
         agent_result = {}
 
-        if intent == "INTEGRATIONS":
+        if intent == "AUTOMATIONS":
+            from app.services.ai.tools.automation_tools import (
+                get_automations_tool,
+                get_automation_failures_tool,
+                pause_automation_tool,
+                run_automation_tool
+            )
+            from app.services.automation.ai_builder import ai_automation_builder
+            q_lower = query.lower()
+
+            if any(w in q_lower for w in ["create", "build", "new automation", "set up"]):
+                builder_res = ai_automation_builder.parse_prompt(prompt=query, business_id=business_id)
+                wf = builder_res.suggested_workflow
+                agent_result = {
+                    "agent": "supervisor",
+                    "message": f"I've drafted a new workflow: **{wf.name}**.\n\n{wf.description}\n\nReview the proposed steps below and activate whenever you're ready.",
+                    "structured_data": {
+                        "type": "workflow_preview",
+                        "workflow": wf.model_dump(),
+                        "steps": [s.model_dump() for s in builder_res.steps]
+                    },
+                    "action_cards": [
+                        {
+                            "type": "workflow_card",
+                            "title": wf.name,
+                            "description": wf.description,
+                            "primary_action_label": "Save & Activate",
+                            "action_payload": {"route": "/automations/create"}
+                        }
+                    ]
+                }
+            elif any(w in q_lower for w in ["fail", "error", "broken", "issue"]):
+                failures = await get_automation_failures_tool(business_id=business_id)
+                agent_result = {
+                    "agent": "supervisor",
+                    "message": f"Found {failures.get('failed_runs_count', 0)} recent failed workflow run(s).",
+                    "structured_data": failures,
+                    "action_cards": []
+                }
+            elif "pause" in q_lower:
+                pause_res = await pause_automation_tool(business_id=business_id, name_or_id=query)
+                agent_result = {
+                    "agent": "supervisor",
+                    "message": f"Workflow updated: {pause_res.get('name', 'Automation')} is now {pause_res.get('status', 'paused')}." if pause_res.get("success") else pause_res.get("error", "Failed to pause workflow."),
+                    "structured_data": pause_res,
+                    "action_cards": []
+                }
+            elif "run" in q_lower:
+                run_res = await run_automation_tool(business_id=business_id, name_or_id=query)
+                agent_result = {
+                    "agent": "supervisor",
+                    "message": f"Triggered execution for '{run_res.get('name', 'workflow')}'. Run ID: {run_res.get('run_id')}." if run_res.get("success") else run_res.get("error", "Failed to run workflow."),
+                    "structured_data": run_res,
+                    "action_cards": []
+                }
+            else:
+                auto_data = await get_automations_tool(business_id=business_id)
+                agent_result = {
+                    "agent": "supervisor",
+                    "message": f"You currently have {auto_data.get('active_count', 0)} active workflows out of your plan limit of {auto_data.get('max_limit', 2)} ({auto_data.get('plan_tier', 'free').capitalize()} plan).",
+                    "structured_data": auto_data,
+                    "action_cards": [
+                        {
+                            "type": "navigation",
+                            "title": "Open Automations Hub",
+                            "description": "View and manage all automated business workflows.",
+                            "primary_action_label": "View Automations",
+                            "action_payload": {"route": "/automations"}
+                        }
+                    ]
+                }
+        elif intent == "INTEGRATIONS":
             agent_result = await self.integration_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})
         elif intent == "SALES":
             agent_result = await self.sales_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})

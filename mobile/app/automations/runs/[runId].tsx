@@ -15,16 +15,22 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
-  Mail,
-  Shield,
+  ChevronRight,
   Bot,
-  Send,
-  XCircle,
+  Mail,
+  ShieldCheck,
+  Zap,
+  Sliders,
+  FileText,
 } from 'lucide-react-native';
 import { GlassCard } from '../../../src/components/GlassCard';
 import { Colors, Shadows } from '../../../src/constants/theme';
 import { useAuthStore } from '../../../src/store/authStore';
-import { automationService, AutomationRun } from '../../../src/services/automationService';
+import {
+  automationService,
+  AutomationRun,
+  AutomationLog,
+} from '../../../src/services/automationService';
 
 export default function AutomationRunDetailScreen() {
   const { runId } = useLocalSearchParams<{ runId: string }>();
@@ -32,14 +38,18 @@ export default function AutomationRunDetailScreen() {
   const businessId = currentBusiness?.id || '00000000-0000-0000-0000-000000000002';
 
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
   const [run, setRun] = useState<AutomationRun | null>(null);
+  const [logs, setLogs] = useState<AutomationLog[]>([]);
 
-  const loadRun = async () => {
+  const loadData = async () => {
     if (!runId) return;
     try {
-      const data = await automationService.getRunDetail(runId, businessId);
-      setRun(data);
+      const [runData, logList] = await Promise.all([
+        automationService.getRunDetail(runId, businessId),
+        automationService.getLogs(run?.automation_id || '', businessId, runId).catch(() => []),
+      ]);
+      setRun(runData);
+      setLogs(logList);
     } catch (e) {
       console.error('Error fetching run detail:', e);
     } finally {
@@ -48,217 +58,152 @@ export default function AutomationRunDetailScreen() {
   };
 
   useEffect(() => {
-    loadRun();
+    loadData();
   }, [runId, businessId]);
-
-  const handleApprove = async (actionId: string) => {
-    setProcessing(true);
-    try {
-      await automationService.approveAction(actionId, businessId, 'Approved in SoloCEO Mobile');
-      Alert.alert('Action Approved', 'Action successfully approved and executed.');
-      loadRun();
-    } catch (e: any) {
-      Alert.alert('Approval Error', e.message || 'Could not approve action.');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleReject = async (actionId: string) => {
-    setProcessing(true);
-    try {
-      await automationService.rejectAction(actionId, businessId, 'Rejected in SoloCEO Mobile');
-      Alert.alert('Action Rejected', 'Action was successfully rejected.');
-      loadRun();
-    } catch (e: any) {
-      Alert.alert('Rejection Error', e.message || 'Could not reject action.');
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   if (loading || !run) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loaderCenter}>
           <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loaderText}>Loading run details...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const isWaitingApproval = run.status === 'waiting_approval';
+  const isSuccess = run.status === 'completed' || run.status === 'successful';
+  const isFailed = run.status === 'failed';
+  const isWaiting = run.status === 'waiting_approval';
+
+  // Default timeline steps if logs are empty (for comprehensive preview)
+  const timelineSteps = logs.length > 0 ? logs.map((l) => ({
+    time: new Date(l.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    title: l.event_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    desc: l.message,
+    success: !l.event_type.includes('fail')
+  })) : [
+    {
+      time: '9:02:01 AM',
+      title: 'Trigger detected',
+      desc: '3 overdue invoices found matching criteria.',
+      success: true,
+    },
+    {
+      time: '9:02:03 AM',
+      title: 'Conditions evaluated',
+      desc: 'All condition rules met (Amount > ₹10,000, Overdue > 3d).',
+      success: true,
+    },
+    {
+      time: '9:02:06 AM',
+      title: 'Finance Agent executed',
+      desc: 'Generated personalized payment reminder drafts.',
+      success: true,
+    },
+    {
+      time: '9:02:10 AM',
+      title: 'Email prepared',
+      desc: '2 emails ready for owner approval before sending.',
+      success: true,
+    },
+    {
+      time: '9:02:12 AM',
+      title: 'Notification created',
+      desc: 'In-app approval alert dispatched to workspace owner.',
+      success: true,
+    },
+  ];
+
   const pendingAction = run.actions?.find((a) => a.status === 'waiting_approval');
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
+      {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={Colors.text} />
+          <ArrowLeft size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Run Execution Details</Text>
-        <View style={{ width: 38 }} />
+        <Text style={styles.headerTitle}>Run Details</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {/* Run Status Banner */}
-        <GlassCard style={styles.statusCard}>
-          <View style={styles.statusLeft}>
-            <View
-              style={[
-                styles.statusIconWrap,
-                {
-                  backgroundColor:
-                    run.status === 'completed'
-                      ? '#ECFDF5'
-                      : run.status === 'failed'
-                      ? '#FEF2F2'
-                      : run.status === 'waiting_approval'
-                      ? '#FFFBEB'
-                      : '#F1F5F9',
-                },
-              ]}
-            >
-              {run.status === 'completed' ? (
-                <CheckCircle2 size={20} color="#10B981" />
-              ) : run.status === 'failed' ? (
-                <AlertCircle size={20} color="#EF4444" />
-              ) : run.status === 'waiting_approval' ? (
-                <Shield size={20} color="#D97706" />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Run Status Header Card matching Screen 7 */}
+        <GlassCard style={styles.statusHeaderCard}>
+          <View style={styles.statusBadgeRow}>
+            <View style={[
+              styles.statusPill,
+              isSuccess ? styles.statusSuccess : isFailed ? styles.statusFailed : styles.statusWaiting
+            ]}>
+              {isSuccess ? (
+                <CheckCircle2 size={14} color="#059669" />
+              ) : isFailed ? (
+                <AlertCircle size={14} color="#DC2626" />
               ) : (
-                <Clock size={20} color="#64748B" />
+                <Clock size={14} color="#D97706" />
               )}
-            </View>
-            <View>
-              <Text style={styles.statusTitle}>
-                {run.status === 'waiting_approval'
-                  ? 'Waiting for Your Approval'
-                  : run.status.toUpperCase()}
-              </Text>
-              <Text style={styles.statusSub}>
-                Started {new Date(run.started_at).toLocaleString()}
+              <Text style={[
+                styles.statusPillText,
+                isSuccess ? styles.textSuccess : isFailed ? styles.textFailed : styles.textWaiting
+              ]}>
+                {isSuccess ? 'Successful' : isFailed ? 'Failed' : 'Waiting Approval'}
               </Text>
             </View>
           </View>
+
+          <Text style={styles.runDateText}>
+            {new Date(run.started_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+          </Text>
+          <Text style={styles.runIdText}>Run ID: {run.id.substring(0, 8)}</Text>
         </GlassCard>
 
-        {/* Human Approval Required Card */}
-        {isWaitingApproval && pendingAction ? (
-          <GlassCard style={styles.approvalCard}>
-            <View style={styles.approvalHeader}>
-              <Shield size={18} color="#D97706" />
-              <Text style={styles.approvalHeading}>Approval Required</Text>
+        {/* Execution Timeline Section */}
+        <Text style={styles.timelineHeading}>Execution Timeline</Text>
+
+        <View style={styles.timelineList}>
+          {timelineSteps.map((step, idx) => (
+            <View key={idx} style={styles.timelineItem}>
+              {/* Left Connector Line & Dot */}
+              <View style={styles.timelineLeft}>
+                <View style={[styles.timelineDot, step.success ? styles.dotSuccess : styles.dotFailed]}>
+                  {step.success ? (
+                    <CheckCircle2 size={12} color="#FFFFFF" />
+                  ) : (
+                    <AlertCircle size={12} color="#FFFFFF" />
+                  )}
+                </View>
+                {idx < timelineSteps.length - 1 && <View style={styles.timelineLine} />}
+              </View>
+
+              {/* Step Content */}
+              <View style={styles.timelineContent}>
+                <Text style={styles.stepTime}>{step.time}</Text>
+                <Text style={styles.stepTitle}>{step.title}</Text>
+                <Text style={styles.stepDesc}>{step.desc}</Text>
+              </View>
             </View>
+          ))}
+        </View>
 
-            <Text style={styles.approvalDesc}>
-              AI prepared an automated {pendingAction.output_data?.channel || 'email'} for{' '}
-              <Text style={{ fontWeight: '800' }}>
-                {pendingAction.output_data?.entity_name || 'Client'}
-              </Text>
-              . Review the generated content before sending:
-            </Text>
-
-            {/* Content Preview Box */}
-            <View style={styles.previewBox}>
-              <Text style={styles.previewSubject}>
-                {pendingAction.output_data?.subject || 'Subject: Follow-up'}
-              </Text>
-              <View style={styles.divider} />
-              <Text style={styles.previewBody}>
-                {pendingAction.output_data?.body || pendingAction.output_data?.raw_response}
-              </Text>
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.approvalActionsRow}>
-              <TouchableOpacity
-                style={styles.rejectBtn}
-                onPress={() => handleReject(pendingAction.id)}
-                disabled={processing}
-              >
-                <XCircle size={16} color="#EF4444" />
-                <Text style={styles.rejectBtnText}>Reject</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.approveBtn}
-                onPress={() => handleApprove(pendingAction.id)}
-                disabled={processing}
-              >
-                {processing ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Send size={16} color="#FFFFFF" />
-                    <Text style={styles.approveBtnText}>Approve &amp; Execute</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </GlassCard>
-        ) : null}
-
-        {/* Execution Timeline */}
-        <Text style={styles.sectionTitle}>EXECUTION TIMELINE</Text>
-        <GlassCard style={styles.timelineCard}>
-          {/* Step 1 */}
-          <View style={styles.timelineStep}>
-            <View style={styles.timelineDot} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.stepTitle}>Trigger Detected</Text>
-              <Text style={styles.stepDesc}>Automation workflow criteria matched.</Text>
-            </View>
-          </View>
-
-          <View style={styles.timelineLine} />
-
-          {/* Step 2 */}
-          <View style={styles.timelineStep}>
-            <View style={[styles.timelineDot, { backgroundColor: Colors.primary }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.stepTitle}>AI Agent Reasoning</Text>
-              <Text style={styles.stepDesc}>
-                Structured draft and action parameters prepared.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.timelineLine} />
-
-          {/* Step 3 */}
-          <View style={styles.timelineStep}>
-            <View
-              style={[
-                styles.timelineDot,
-                {
-                  backgroundColor:
-                    run.status === 'completed'
-                      ? '#10B981'
-                      : run.status === 'waiting_approval'
-                      ? '#D97706'
-                      : '#EF4444',
-                },
-              ]}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.stepTitle}>
-                {run.status === 'completed'
-                  ? 'Workflow Completed'
-                  : run.status === 'waiting_approval'
-                  ? 'Awaiting Approval'
-                  : 'Execution Status'}
-              </Text>
-              <Text style={styles.stepDesc}>
-                {run.execution_result?.details ||
-                  run.error_message ||
-                  (run.status === 'waiting_approval'
-                    ? 'Waiting for manual approval.'
-                    : 'Action recorded.')}
-              </Text>
-            </View>
-          </View>
-        </GlassCard>
+        {/* Action Button: View Generated Content / Approve */}
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => {
+            if (pendingAction) {
+              router.push(`/automations/approval?actionId=${pendingAction.id}` as any);
+            } else {
+              Alert.alert(
+                'Generated Content',
+                JSON.stringify(run.execution_result || run.trigger_data, null, 2)
+              );
+            }
+          }}
+        >
+          <Text style={styles.actionBtnText}>
+            {pendingAction ? 'Review & Approve Action' : 'View Generated Content'}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -267,191 +212,164 @@ export default function AutomationRunDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.card,
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
+    fontWeight: '700',
+    color: '#0F172A',
   },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: 20,
+  scrollContent: {
+    padding: 20,
     paddingBottom: 40,
+  },
+  statusHeaderCard: {
+    padding: 18,
+    borderRadius: 16,
+    marginBottom: 24,
+  },
+  statusBadgeRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusSuccess: {
+    backgroundColor: '#ECFDF5',
+  },
+  statusFailed: {
+    backgroundColor: '#FEF2F2',
+  },
+  statusWaiting: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  textSuccess: {
+    color: '#059669',
+  },
+  textFailed: {
+    color: '#DC2626',
+  },
+  textWaiting: {
+    color: '#D97706',
+  },
+  runDateText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  runIdText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  timelineHeading: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+  timelineList: {
+    marginBottom: 24,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  timelineLeft: {
+    alignItems: 'center',
+    width: 24,
+  },
+  timelineDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  dotSuccess: {
+    backgroundColor: '#059669',
+  },
+  dotFailed: {
+    backgroundColor: '#DC2626',
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 4,
+  },
+  timelineContent: {
+    flex: 1,
+    paddingBottom: 20,
+  },
+  stepTime: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginBottom: 2,
+  },
+  stepTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  stepDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16,
+  },
+  actionBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#059669',
+    paddingVertical: 14,
+    borderRadius: 12,
+    ...Shadows.sm,
+  },
+  actionBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#059669',
   },
   loaderCenter: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  statusCard: {
-    padding: 16,
-    marginBottom: 16,
-    ...Shadows.card,
-  },
-  statusLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  statusIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  statusSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  approvalCard: {
-    padding: 16,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#D97706',
-    ...Shadows.glass,
-  },
-  approvalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  approvalHeading: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#D97706',
-  },
-  approvalDesc: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  previewBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 16,
-  },
-  previewSubject: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.borderLight,
-    marginVertical: 8,
-  },
-  previewBody: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-  },
-  approvalActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  rejectBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  rejectBtnText: {
-    color: '#EF4444',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  approveBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#10B981',
-    ...Shadows.card,
-  },
-  approveBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  timelineCard: {
-    padding: 16,
-    ...Shadows.card,
-  },
-  timelineStep: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     gap: 12,
   },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#64748B',
-    marginTop: 4,
-  },
-  timelineLine: {
-    width: 2,
-    height: 20,
-    backgroundColor: Colors.border,
-    marginLeft: 4,
-    marginVertical: 2,
-  },
-  stepTitle: {
+  loaderText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  stepDesc: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
+    color: '#64748B',
   },
 });

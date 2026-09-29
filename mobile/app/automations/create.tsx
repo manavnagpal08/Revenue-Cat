@@ -6,460 +6,459 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Switch,
   ActivityIndicator,
   Alert,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
-  Zap,
-  Bot,
   Sparkles,
-  CheckCircle2,
-  Mail,
-  Clock,
-  AlertCircle,
-  MessageSquare,
-  FileText,
-  Shield,
+  Zap,
   Send,
-  RefreshCw,
+  ChevronRight,
+  CheckCircle2,
+  FileText,
+  Clock,
+  Mail,
+  UserPlus,
+  Flame,
+  Bot,
+  Sliders,
+  Edit3,
+  ShieldCheck,
+  Plus,
 } from 'lucide-react-native';
 import { GlassCard } from '../../src/components/GlassCard';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/authStore';
-import { automationService } from '../../src/services/automationService';
+import {
+  automationService,
+  Automation,
+  AutomationAIBuilderResponse,
+} from '../../src/services/automationService';
 
-export default function AutomationBuilderScreen() {
+export default function CreateAutomationScreen() {
   const { currentBusiness } = useAuthStore();
   const businessId = currentBusiness?.id || '00000000-0000-0000-0000-000000000002';
-  const params = useLocalSearchParams<{ templateId?: string; mode?: string }>();
+  const params = useLocalSearchParams<{ templateId?: string; prompt?: string }>();
 
-  const [mode, setMode] = useState<'template' | 'ai' | 'custom'>(
-    (params.mode as any) || (params.templateId ? 'template' : 'custom')
-  );
-
-  // Form State
-  const [name, setName] = useState('Follow up inactive leads');
-  const [description, setDescription] = useState('Auto-send personalized follow-up emails to leads who haven\'t replied in 7 days.');
-  const [triggerType, setTriggerType] = useState('lead_inactive');
-  const [inactivityDays, setInactivityDays] = useState('7');
-  const [agentType, setAgentType] = useState('sales');
-  const [channel, setChannel] = useState<'email' | 'whatsapp' | 'task' | 'notification'>('email');
-  const [prompt, setPrompt] = useState(
-    'Write a friendly and professional follow-up email for a lead who hasn\'t replied in 7 days. Mention their project interest and offer a quick call to discuss next steps.'
-  );
-  const [tone, setTone] = useState<'professional' | 'friendly' | 'persuasive'>('friendly');
-  const [requiresApproval, setRequiresApproval] = useState(true);
-  const [aiNaturalQuery, setAiNaturalQuery] = useState('');
-  const [previewText, setPreviewText] = useState(
-    'Subject: Quick follow-up on your project\n\nHi {name},\n\nI hope you\'re doing well! I wanted to follow up on our previous conversation regarding your project scope. If you\'re still interested, I\'d be delighted to schedule a brief 10-minute check-in.\n\nBest regards,\nSoloCEO Team'
-  );
+  const [activeTab, setActiveTab] = useState<'ai' | 'visual'>('ai');
+  const [promptInput, setPromptInput] = useState(params.prompt || '');
+  const [loadingAi, setLoadingAi] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [generatingPreview, setGeneratingPreview] = useState(false);
+  const [aiPreview, setAiPreview] = useState<AutomationAIBuilderResponse | null>(null);
 
-  // Pre-fill from template if provided
+  // Visual Builder form state
+  const [workflowName, setWorkflowName] = useState('Invoice Overdue Reminder');
+  const [triggerType, setTriggerType] = useState('invoice_overdue');
+  const [conditionField, setConditionField] = useState('Amount > ₹10,000');
+  const [conditionOperator, setConditionOperator] = useState('AND Overdue days > 3');
+  const [agentType, setAgentType] = useState('finance');
+  const [actionType, setActionType] = useState('send_email');
+  const [requiresApproval, setRequiresApproval] = useState(true);
+
+  const examplePrompts = [
+    {
+      title: 'Follow up with inactive leads',
+      prompt: 'Follow up with leads who have not replied for 7 days and send a personalized email.',
+    },
+    {
+      title: 'Send invoice reminders',
+      prompt: 'Every morning check overdue invoices and prepare payment reminder emails.',
+    },
+    {
+      title: 'Weekly business summary',
+      prompt: 'Every Monday morning generate my weekly business summary and notify me.',
+    },
+    {
+      title: 'Prepare meeting briefs',
+      prompt: 'Prepare client brief and intelligence summary 30 minutes before client meetings.',
+    },
+    {
+      title: 'Create proposal when lead is qualified',
+      prompt: 'Generate an initial scope and proposal draft when a lead reaches qualified stage.',
+    },
+  ];
+
   useEffect(() => {
-    if (params.templateId) {
-      loadTemplate(params.templateId);
+    if (params.prompt) {
+      handleGenerateAI(params.prompt);
     }
-  }, [params.templateId]);
+  }, [params.prompt]);
 
-  const loadTemplate = async (templateId: string) => {
-    try {
-      const templates = await automationService.getTemplates();
-      const tpl = templates.find((t) => t.id === templateId);
-      if (tpl) {
-        setName(tpl.name);
-        setDescription(tpl.description);
-        setTriggerType(tpl.trigger_type);
-        setAgentType(tpl.configuration.agent_type || 'sales');
-        setChannel(tpl.configuration.action_config?.channel || 'email');
-        setPrompt(tpl.configuration.action_config?.prompt || '');
-        setTone(tpl.configuration.action_config?.tone || 'professional');
-        setRequiresApproval(tpl.configuration.requires_approval ?? true);
-      }
-    } catch (e) {
-      console.warn('Template load error:', e);
-    }
-  };
-
-  const handleAiNaturalSubmit = () => {
-    if (!aiNaturalQuery.trim()) return;
-    const query = aiNaturalQuery.toLowerCase();
-    if (query.includes('invoice') || query.includes('overdue') || query.includes('pay')) {
-      setName('Overdue Invoice Automation');
-      setDescription('Automatically notify clients with overdue invoices.');
-      setTriggerType('invoice_overdue');
-      setAgentType('finance');
-      setChannel('email');
-      setPrompt('Generate a polite but firm overdue payment reminder with due date and balance.');
-      setTone('professional');
-    } else if (query.includes('lead') || query.includes('follow') || query.includes('inactive')) {
-      setName('Smart Lead Follow-Up');
-      setDescription('Follow up with inactive leads after 5 days.');
-      setTriggerType('lead_inactive');
-      setAgentType('sales');
-      setChannel('email');
-      setPrompt('Draft an engaging follow-up asking if they want to move forward with their project.');
-      setTone('friendly');
-    } else {
-      setName('Daily AI Business Summary');
-      setDescription('Generate executive business briefing every morning.');
-      setTriggerType('daily_summary');
-      setAgentType('supervisor');
-      setChannel('notification');
-      setPrompt('Summarize top leads, cash collections, and open tasks for today.');
-      setTone('professional');
-      setRequiresApproval(false);
-    }
-    setMode('custom');
-  };
-
-  const regeneratePreview = () => {
-    setGeneratingPreview(true);
-    setTimeout(() => {
-      if (channel === 'email') {
-        setPreviewText(
-          `Subject: Update regarding your project inquiry\n\nHi {name},\n\nJust checking in following our last discussion. We have reserved project slots for next month and would love to help you bring this vision to life.\n\nLet me know if this week works for a quick discussion!\n\nBest,\nSoloCEO`
-        );
-      } else if (channel === 'whatsapp') {
-        setPreviewText(
-          `Hi {name}! Just following up on your project inquiry. Let us know if you would like to schedule a quick call this week.`
-        );
-      } else {
-        setPreviewText(
-          `[Task Generated]: Review lead proposal requirements and schedule consultation call.`
-        );
-      }
-      setGeneratingPreview(false);
-    }, 400);
-  };
-
-  const handleSave = async () => {
-    if (!name.trim()) {
-      Alert.alert('Validation Error', 'Please enter an automation name.');
+  const handleGenerateAI = async (textToUse?: string) => {
+    const text = textToUse || promptInput;
+    if (!text.trim()) {
+      Alert.alert('Empty Prompt', 'Please describe what you want to automate.');
       return;
     }
+    setLoadingAi(true);
+    try {
+      const response = await automationService.buildWithAI(text, businessId);
+      setAiPreview(response);
+      // Sync with visual builder state
+      if (response.suggested_workflow) {
+        const wf = response.suggested_workflow;
+        setWorkflowName(wf.name);
+        setTriggerType(wf.trigger_type);
+        setAgentType(wf.agent_type || 'sales');
+        setRequiresApproval(wf.requires_approval ?? true);
+      }
+    } catch (e: any) {
+      Alert.alert('AI Builder Error', e?.message || 'Failed to parse automation prompt');
+    } finally {
+      setLoadingAi(false);
+    }
+  };
 
+  const handleSaveAndActivate = async (customPayload?: Partial<Automation>) => {
     setSaving(true);
     try {
-      const payload = {
+      const payload = customPayload || (aiPreview ? aiPreview.suggested_workflow : {
         business_id: businessId,
-        name: name.trim(),
-        description: description.trim(),
+        name: workflowName,
         trigger_type: triggerType,
-        trigger_config: {
-          inactivity_days: parseInt(inactivityDays) || 7,
-        },
-        condition_config: {
-          rules: [
-            { field: 'lead.status', operator: '!=', value: 'lost' },
-          ],
-          match_type: 'all',
-        },
+        trigger_config: {},
+        condition_config: {},
         agent_type: agentType,
-        action_config: {
-          channel,
-          action_type: channel === 'email' ? 'send_email' : channel === 'whatsapp' ? 'send_whatsapp' : 'send_notification',
-          prompt: prompt.trim(),
-          tone,
-        },
+        action_config: { action_type: actionType, channel: 'email' },
+        requires_approval: requiresApproval,
         status: 'active',
         enabled: true,
-        requires_approval: requiresApproval,
-      };
+      });
 
-      await automationService.createAutomation(payload as any);
-      Alert.alert('Success', 'Automation created and activated successfully!', [
-        { text: 'OK', onPress: () => router.replace('/automations' as any) },
+      payload.business_id = businessId;
+      payload.status = 'active';
+      payload.enabled = true;
+
+      const created = await automationService.createAutomation(payload as any);
+      Alert.alert('Success', `Workflow "${created.name}" created and activated!`, [
+        { text: 'View Automation', onPress: () => router.replace(`/automations/${created.id}` as any) },
+        { text: 'Done', onPress: () => router.replace('/automations' as any) },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to create automation');
+      if (e?.message?.includes('AUTOMATION_LIMIT_REACHED')) {
+        Alert.alert(
+          'Plan Limit Reached',
+          'You have reached the maximum active automations for your current plan. Upgrade to unlock more.',
+          [
+            { text: 'Upgrade Plan', onPress: () => router.push('/paywall' as any) },
+            { text: 'Cancel', style: 'cancel' }
+          ]
+        );
+      } else {
+        Alert.alert('Error', e?.message || 'Failed to save automation');
+      }
     } finally {
       setSaving(false);
     }
   };
 
-  const triggersList = [
-    { type: 'lead_inactive', title: 'Lead is inactive', desc: 'No reply for specified days', icon: Clock },
-    { type: 'website_lead_received', title: 'New website lead', desc: 'Captured from contact form', icon: Mail },
-    { type: 'invoice_overdue', title: 'Invoice is overdue', desc: 'Payment passes due date', icon: AlertCircle },
-    { type: 'daily_summary', title: 'Daily business brief', desc: 'Scheduled morning briefing', icon: Zap },
-  ];
-
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
+      {/* Top Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={Colors.text} />
+          <ArrowLeft size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.title}>Create Automation</Text>
-        <View style={{ width: 38 }} />
+        <Text style={styles.headerTitle}>
+          {aiPreview && activeTab === 'ai' ? 'Review Generated Workflow' : 'Create Automation'}
+        </Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      {/* Mode Selector Tabs */}
-      <View style={styles.modeTabsWrap}>
-        <TouchableOpacity
-          style={[styles.modeTab, mode === 'template' && styles.modeTabActive]}
-          onPress={() => router.push('/automations/templates' as any)}
-        >
-          <Text style={[styles.modeTabText, mode === 'template' && styles.modeTabTextActive]}>
-            Templates
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.modeTab, mode === 'ai' && styles.modeTabActive]}
-          onPress={() => setMode('ai')}
-        >
-          <Sparkles size={12} color={mode === 'ai' ? '#FFFFFF' : Colors.textSecondary} />
-          <Text style={[styles.modeTabText, mode === 'ai' && styles.modeTabTextActive]}>
-            AI Assist
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.modeTab, mode === 'custom' && styles.modeTabActive]}
-          onPress={() => setMode('custom')}
-        >
-          <Text style={[styles.modeTabText, mode === 'custom' && styles.modeTabTextActive]}>
-            Custom Builder
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {mode === 'ai' ? (
-          /* AI Assist Mode */
-          <GlassCard style={styles.aiCard}>
-            <View style={styles.aiHeaderRow}>
-              <Sparkles size={20} color={Colors.primary} />
-              <Text style={styles.aiCardTitle}>Describe your automation</Text>
-            </View>
-            <Text style={styles.aiCardDesc}>
-              Tell SoloCEO what you'd like to automate. Example: "When an invoice is 3 days overdue, draft a polite payment reminder via email."
+      {/* Segmented Control: AI Builder vs Visual Builder */}
+      {!aiPreview && (
+        <View style={styles.segmentedWrap}>
+          <TouchableOpacity
+            style={[styles.segmentBtn, activeTab === 'ai' && styles.segmentBtnActive]}
+            onPress={() => setActiveTab('ai')}
+          >
+            <Sparkles size={14} color={activeTab === 'ai' ? '#FFFFFF' : '#64748B'} />
+            <Text style={[styles.segmentText, activeTab === 'ai' && styles.segmentTextActive]}>
+              AI Builder
             </Text>
-            <TextInput
-              style={styles.aiInput}
-              placeholder="E.g., Send follow-up email to leads who haven't responded in 5 days..."
-              placeholderTextColor={Colors.textMuted}
-              value={aiNaturalQuery}
-              onChangeText={setAiNaturalQuery}
-              multiline
-              numberOfLines={4}
-            />
-            <TouchableOpacity style={styles.aiSubmitBtn} onPress={handleAiNaturalSubmit}>
-              <Sparkles size={16} color="#FFFFFF" />
-              <Text style={styles.aiSubmitBtnText}>Generate Workflow</Text>
-            </TouchableOpacity>
-          </GlassCard>
-        ) : (
-          /* Visual Workflow Builder Nodes */
-          <View style={styles.builderContainer}>
-            {/* General Info */}
-            <GlassCard style={styles.nodeCard}>
-              <Text style={styles.sectionLabel}>WORKFLOW DETAILS</Text>
-              <TextInput
-                style={styles.nameInput}
-                placeholder="Automation Name"
-                placeholderTextColor={Colors.textMuted}
-                value={name}
-                onChangeText={setName}
-              />
-              <TextInput
-                style={styles.descInput}
-                placeholder="Description"
-                placeholderTextColor={Colors.textMuted}
-                value={description}
-                onChangeText={setDescription}
-              />
-            </GlassCard>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.segmentBtn, activeTab === 'visual' && styles.segmentBtnActive]}
+            onPress={() => setActiveTab('visual')}
+          >
+            <Sliders size={14} color={activeTab === 'visual' ? '#FFFFFF' : '#64748B'} />
+            <Text style={[styles.segmentText, activeTab === 'visual' && styles.segmentTextActive]}>
+              Visual Builder
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-            {/* Step 1: Trigger Node */}
-            <GlassCard style={styles.nodeCard}>
-              <View style={styles.nodeHeader}>
-                <View style={[styles.stepBadge, { backgroundColor: '#EEF2FF' }]}>
-                  <Zap size={14} color="#4F46E5" />
-                  <Text style={styles.stepNum}>1</Text>
-                </View>
-                <Text style={styles.nodeTitle}>Trigger</Text>
-              </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* ================= MODE 1: AI BUILDER (INPUT) ================= */}
+        {activeTab === 'ai' && !aiPreview && (
+          <View>
+            <Text style={styles.sectionHeading}>Describe what you want to automate</Text>
+            <Text style={styles.sectionSubtitle}>
+              Example: Follow up with leads who haven't replied for 7 days and send a personalized email.
+            </Text>
 
-              <Text style={styles.nodeHelp}>Choose when this automation should run:</Text>
-
-              <View style={styles.triggersGrid}>
-                {triggersList.map((trig) => {
-                  const Icon = trig.icon;
-                  const isSelected = triggerType === trig.type;
-                  return (
-                    <TouchableOpacity
-                      key={trig.type}
-                      style={[styles.trigOption, isSelected && styles.trigOptionSelected]}
-                      onPress={() => setTriggerType(trig.type)}
-                    >
-                      <View style={styles.trigLeft}>
-                        <Icon size={16} color={isSelected ? Colors.primary : Colors.textSecondary} />
-                        <View>
-                          <Text style={[styles.trigTitle, isSelected && styles.trigTitleSelected]}>
-                            {trig.title}
-                          </Text>
-                          <Text style={styles.trigDesc}>{trig.desc}</Text>
-                        </View>
-                      </View>
-                      {isSelected ? <CheckCircle2 size={16} color={Colors.primary} /> : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </GlassCard>
-
-            {/* Step 2: AI Agent & Action Node */}
-            <GlassCard style={styles.nodeCard}>
-              <View style={styles.nodeHeader}>
-                <View style={[styles.stepBadge, { backgroundColor: '#ECFDF5' }]}>
-                  <Bot size={14} color="#059669" />
-                  <Text style={[styles.stepNum, { color: '#059669' }]}>2</Text>
-                </View>
-                <Text style={styles.nodeTitle}>AI Agent Reasoning</Text>
-              </View>
-
-              {/* Agent Selector */}
-              <Text style={styles.fieldLabel}>ASSIGNED AI AGENT</Text>
-              <View style={styles.agentPillsRow}>
-                {['sales', 'finance', 'proposal', 'customer_support'].map((agent) => (
-                  <TouchableOpacity
-                    key={agent}
-                    style={[styles.agentPill, agentType === agent && styles.agentPillSelected]}
-                    onPress={() => setAgentType(agent)}
-                  >
-                    <Text
-                      style={[
-                        styles.agentPillText,
-                        agentType === agent && styles.agentPillTextSelected,
-                      ]}
-                    >
-                      {agent.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Channel Selector */}
-              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>ACTION CHANNEL</Text>
-              <View style={styles.channelRow}>
-                {[
-                  { id: 'email', label: 'Email', icon: Mail },
-                  { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
-                  { id: 'notification', label: 'In-App Alert', icon: AlertCircle },
-                ].map((ch) => {
-                  const Icon = ch.icon;
-                  const isChSelected = channel === ch.id;
-                  return (
-                    <TouchableOpacity
-                      key={ch.id}
-                      style={[styles.channelBtn, isChSelected && styles.channelBtnSelected]}
-                      onPress={() => setChannel(ch.id as any)}
-                    >
-                      <Icon size={14} color={isChSelected ? '#FFFFFF' : Colors.textSecondary} />
-                      <Text
-                        style={[
-                          styles.channelBtnText,
-                          isChSelected && styles.channelBtnTextSelected,
-                        ]}
-                      >
-                        {ch.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Prompt for AI */}
-              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>PROMPT FOR AI</Text>
+            {/* Input Box */}
+            <GlassCard style={styles.inputCard}>
               <TextInput
                 style={styles.promptInput}
-                value={prompt}
-                onChangeText={setPrompt}
+                placeholder="When a new website lead comes in, create a customer, create a lead and send a follow-up email."
+                placeholderTextColor="#94A3B8"
                 multiline
-                numberOfLines={3}
-                placeholder="Instructions for the AI..."
-                placeholderTextColor={Colors.textMuted}
+                numberOfLines={4}
+                value={promptInput}
+                onChangeText={setPromptInput}
+                maxLength={500}
               />
-
-              {/* Tone Selection */}
-              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>AI TONE</Text>
-              <View style={styles.toneRow}>
-                {(['professional', 'friendly', 'persuasive'] as const).map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    style={[styles.toneBtn, tone === t && styles.toneBtnSelected]}
-                    onPress={() => setTone(t)}
-                  >
-                    <Text style={[styles.toneBtnText, tone === t && styles.toneBtnTextSelected]}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Preview Box */}
-              <View style={styles.previewBox}>
-                <View style={styles.previewHeader}>
-                  <Text style={styles.previewTitle}>Live Output Preview</Text>
-                  <TouchableOpacity
-                    style={styles.regenBtn}
-                    onPress={regeneratePreview}
-                    disabled={generatingPreview}
-                  >
-                    <RefreshCw size={12} color={Colors.primary} />
-                    <Text style={styles.regenText}>Regenerate</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.previewContent}>{previewText}</Text>
+              <View style={styles.inputFooter}>
+                <Text style={styles.charCount}>{promptInput.length}/500</Text>
+                <TouchableOpacity
+                  style={[styles.sendBtn, !promptInput.trim() && styles.sendBtnDisabled]}
+                  onPress={() => handleGenerateAI()}
+                  disabled={loadingAi || !promptInput.trim()}
+                >
+                  {loadingAi ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Send size={16} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
               </View>
             </GlassCard>
 
-            {/* Step 3: Human Approval Setting */}
-            <GlassCard style={styles.nodeCard}>
-              <View style={styles.nodeHeader}>
-                <View style={[styles.stepBadge, { backgroundColor: '#FEF3C7' }]}>
-                  <Shield size={14} color="#D97706" />
-                  <Text style={[styles.stepNum, { color: '#D97706' }]}>3</Text>
-                </View>
-                <Text style={styles.nodeTitle}>Safety &amp; Human Approval</Text>
-              </View>
+            {/* Example Prompts */}
+            <Text style={styles.examplesTitle}>Try these examples</Text>
+            <View style={styles.examplesList}>
+              {examplePrompts.map((item, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.exampleItem}
+                  onPress={() => {
+                    setPromptInput(item.prompt);
+                    handleGenerateAI(item.prompt);
+                  }}
+                >
+                  <View style={styles.exampleLeft}>
+                    <Sparkles size={14} color="#059669" />
+                    <Text style={styles.exampleText}>{item.title}</Text>
+                  </View>
+                  <ChevronRight size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
-              <View style={styles.approvalToggleRow}>
-                <View style={{ flex: 1, paddingRight: 10 }}>
-                  <Text style={styles.approvalTitle}>Require My Approval</Text>
-                  <Text style={styles.approvalDesc}>
-                    Generate draft and notify you in SoloCEO before sending external communications.
-                  </Text>
+        {/* ================= MODE 2: AI GENERATED WORKFLOW PREVIEW (SCREEN 3) ================= */}
+        {activeTab === 'ai' && aiPreview && (
+          <View>
+            <Text style={styles.previewSubtitle}>
+              AI has created the following automation based on your request. You can edit it before activating.
+            </Text>
+
+            {/* Step 1: Trigger Card */}
+            <GlassCard style={styles.stepPreviewCard}>
+              <View style={styles.stepHeaderRow}>
+                <View style={styles.stepNumberBadge}>
+                  <Text style={styles.stepNumberText}>1</Text>
                 </View>
-                <Switch
-                  value={requiresApproval}
-                  onValueChange={setRequiresApproval}
-                  trackColor={{ false: '#E2E8F0', true: '#C7D2FE' }}
-                  thumbColor={requiresApproval ? '#4F46E5' : '#94A3B8'}
-                />
+                <View style={styles.stepHeaderContent}>
+                  <View style={styles.stepTitleRow}>
+                    <Text style={styles.stepSectionTitle}>Trigger</Text>
+                    <TouchableOpacity onPress={() => setActiveTab('visual')}>
+                      <Text style={styles.editActionText}>Edit</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.stepMainTitle}>{aiPreview.suggested_workflow.name}</Text>
+                  <Text style={styles.stepDescText}>{aiPreview.suggested_workflow.description}</Text>
+                </View>
               </View>
             </GlassCard>
 
-            {/* Save Button */}
+            {/* Step 2: Actions Breakdown */}
+            <View style={styles.actionsBlockHeader}>
+              <View style={styles.stepNumberBadge}>
+                <Text style={styles.stepNumberText}>2</Text>
+              </View>
+              <Text style={styles.actionsBlockTitle}>Actions ({aiPreview.steps.length} steps)</Text>
+            </View>
+
+            <View style={styles.stepsSequence}>
+              {aiPreview.steps.map((step, idx) => (
+                <GlassCard key={idx} style={styles.actionStepCard}>
+                  <View style={styles.actionStepRow}>
+                    <View style={styles.actionIconBox}>
+                      {step.agent_badge ? (
+                        <Bot size={16} color="#059669" />
+                      ) : step.type === 'trigger' ? (
+                        <Flame size={16} color="#EF4444" />
+                      ) : (
+                        <CheckCircle2 size={16} color="#2563EB" />
+                      )}
+                    </View>
+                    <View style={styles.actionStepContent}>
+                      <Text style={styles.actionStepTitle}>{step.title}</Text>
+                      <Text style={styles.actionStepDesc}>{step.description}</Text>
+                      {step.agent_badge && (
+                        <View style={styles.agentBadge}>
+                          <Bot size={10} color="#059669" />
+                          <Text style={styles.agentBadgeText}>{step.agent_badge}</Text>
+                        </View>
+                      )}
+                      {step.requires_approval && (
+                        <View style={styles.approvalBadge}>
+                          <ShieldCheck size={10} color="#D97706" />
+                          <Text style={styles.approvalBadgeText}>Requires Approval</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </GlassCard>
+              ))}
+            </View>
+
+            {/* Buttons */}
             <TouchableOpacity
               style={styles.saveBtn}
-              activeOpacity={0.88}
-              onPress={handleSave}
+              onPress={() => handleSaveAndActivate()}
               disabled={saving}
             >
               {saving ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
-                  <CheckCircle2 size={18} color="#FFFFFF" />
-                  <Text style={styles.saveBtnText}>Save &amp; Activate Automation</Text>
+                  <Sparkles size={16} color="#FFFFFF" />
+                  <Text style={styles.saveBtnText}>Save & Activate</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.editManualBtn}
+              onPress={() => {
+                setActiveTab('visual');
+                setAiPreview(null);
+              }}
+            >
+              <Text style={styles.editManualBtnText}>Edit Manually</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ================= MODE 3: VISUAL WORKFLOW BUILDER (SCREEN 4) ================= */}
+        {activeTab === 'visual' && (
+          <View>
+            <View style={styles.visualFlowWrap}>
+              {/* Node 1: When this happens */}
+              <View style={styles.nodeCardWrap}>
+                <Text style={styles.nodeLabel}>When this happens</Text>
+                <GlassCard style={styles.nodeCard}>
+                  <View style={styles.nodeRow}>
+                    <View style={[styles.nodeIconBox, { backgroundColor: '#ECFDF5' }]}>
+                      <Zap size={18} color="#059669" />
+                    </View>
+                    <View style={styles.nodeContent}>
+                      <Text style={styles.nodeTitle}>Invoice becomes overdue</Text>
+                      <Text style={styles.nodeDesc}>Status changes to overdue</Text>
+                    </View>
+                    <TouchableOpacity style={styles.nodeEditBtn}>
+                      <Edit3 size={16} color="#94A3B8" />
+                    </TouchableOpacity>
+                  </View>
+                </GlassCard>
+              </View>
+
+              <View style={styles.connectorLine} />
+
+              {/* Node 2: If these conditions are met */}
+              <View style={styles.nodeCardWrap}>
+                <Text style={styles.nodeLabel}>If these conditions are met</Text>
+                <GlassCard style={styles.nodeCard}>
+                  <View style={styles.nodeRow}>
+                    <View style={[styles.nodeIconBox, { backgroundColor: '#FEF3C7' }]}>
+                      <Sliders size={18} color="#D97706" />
+                    </View>
+                    <View style={styles.nodeContent}>
+                      <Text style={styles.nodeTitle}>Amount &gt; ₹10,000</Text>
+                      <Text style={styles.nodeDesc}>AND Overdue days &gt; 3</Text>
+                    </View>
+                    <ChevronRight size={16} color="#94A3B8" />
+                  </View>
+                </GlassCard>
+              </View>
+
+              <View style={styles.connectorLine} />
+
+              {/* Node 3: AI Agent / Logic */}
+              <View style={styles.nodeCardWrap}>
+                <Text style={styles.nodeLabel}>AI Agent / Logic</Text>
+                <GlassCard style={styles.nodeCard}>
+                  <View style={styles.nodeRow}>
+                    <View style={[styles.nodeIconBox, { backgroundColor: '#F5F3FF' }]}>
+                      <Sparkles size={18} color="#7C3AED" />
+                    </View>
+                    <View style={styles.nodeContent}>
+                      <Text style={styles.nodeTitle}>Finance Agent</Text>
+                      <Text style={styles.nodeDesc}>Generate payment reminder</Text>
+                    </View>
+                    <ChevronRight size={16} color="#94A3B8" />
+                  </View>
+                </GlassCard>
+              </View>
+
+              <View style={styles.connectorLine} />
+
+              {/* Node 4: Then do this */}
+              <View style={styles.nodeCardWrap}>
+                <Text style={styles.nodeLabel}>Then do this</Text>
+                <GlassCard style={styles.nodeCard}>
+                  <View style={styles.nodeRow}>
+                    <View style={[styles.nodeIconBox, { backgroundColor: '#EFF6FF' }]}>
+                      <Send size={18} color="#2563EB" />
+                    </View>
+                    <View style={styles.nodeContent}>
+                      <Text style={styles.nodeTitle}>Send Email to Customer</Text>
+                      <Text style={[styles.nodeDesc, { color: '#D97706', fontWeight: '600' }]}>
+                        Requires your approval
+                      </Text>
+                    </View>
+                    <ChevronRight size={16} color="#94A3B8" />
+                  </View>
+                </GlassCard>
+              </View>
+            </View>
+
+            {/* Approval Toggle */}
+            <GlassCard style={styles.approvalToggleCard}>
+              <View style={styles.approvalToggleRow}>
+                <View>
+                  <Text style={styles.approvalToggleTitle}>Require Human Approval</Text>
+                  <Text style={styles.approvalToggleDesc}>Hold external emails for your tap-to-send review.</Text>
+                </View>
+                <Switch
+                  value={requiresApproval}
+                  onValueChange={setRequiresApproval}
+                  trackColor={{ false: '#E2E8F0', true: '#059669' }}
+                />
+              </View>
+            </GlassCard>
+
+            {/* Save & Activate Button */}
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={() => handleSaveAndActivate()}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Sparkles size={16} color="#FFFFFF" />
+                  <Text style={styles.saveBtnText}>Save & Activate</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -473,361 +472,376 @@ export default function AutomationBuilderScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadows.card,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
   },
-  modeTabsWrap: {
+  segmentedWrap: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    marginHorizontal: 20,
+    marginTop: 16,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 4,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  segmentBtnActive: {
+    backgroundColor: '#059669',
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  segmentTextActive: {
+    color: '#FFFFFF',
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  sectionHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 14,
+    lineHeight: 18,
+  },
+  inputCard: {
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 24,
+  },
+  promptInput: {
+    fontSize: 14,
+    color: '#0F172A',
+    minHeight: 90,
+    textAlignVertical: 'top',
+    lineHeight: 20,
+  },
+  inputFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 8,
+  },
+  charCount: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  sendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnDisabled: {
+    backgroundColor: '#94A3B8',
+  },
+  examplesTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 10,
+  },
+  examplesList: {
+    gap: 8,
+  },
+  exampleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  exampleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  exampleText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#334155',
+  },
+  previewSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  stepPreviewCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  stepHeaderRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  stepNumberBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  stepNumberText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  stepHeaderContent: {
+    flex: 1,
+  },
+  stepTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  stepSectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#D97706',
+    textTransform: 'uppercase',
+  },
+  editActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  stepMainTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  stepDescText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  actionsBlockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 12,
   },
-  modeTab: {
-    flex: 1,
+  actionsBlockTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  stepsSequence: {
+    gap: 10,
+    marginBottom: 24,
+  },
+  actionStepCard: {
+    padding: 14,
+    borderRadius: 14,
+  },
+  actionStepRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  actionIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
-  modeTabActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  modeTabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  modeTabTextActive: {
-    color: '#FFFFFF',
-  },
-  content: {
+  actionStepContent: {
     flex: 1,
   },
-  contentContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+  actionStepTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
   },
-  aiCard: {
-    padding: 16,
-    ...Shadows.card,
-  },
-  aiHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  actionStepDesc: {
+    fontSize: 12,
+    color: '#64748B',
     marginBottom: 6,
   },
-  aiCardTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  aiCardDesc: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  aiInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    color: Colors.text,
-    textAlignVertical: 'top',
-    minHeight: 100,
-    marginBottom: 14,
-  },
-  aiSubmitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  aiSubmitBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  builderContainer: {
-    gap: 14,
-  },
-  nodeCard: {
-    padding: 16,
-    ...Shadows.card,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-  },
-  nameInput: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    paddingVertical: 6,
-    marginBottom: 8,
-  },
-  descInput: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    paddingVertical: 4,
-  },
-  nodeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  stepBadge: {
+  agentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: '#ECFDF5',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  stepNum: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  nodeTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  nodeHelp: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 10,
-  },
-  triggersGrid: {
-    gap: 8,
-  },
-  trigOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  trigOptionSelected: {
-    backgroundColor: '#EEF2FF',
-    borderColor: Colors.primary,
-  },
-  trigLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  trigTitle: {
-    fontSize: 13,
+  agentBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#059669',
   },
-  trigTitleSelected: {
-    color: Colors.primary,
-  },
-  trigDesc: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 1,
-  },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: 6,
-  },
-  agentPillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  agentPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-  },
-  agentPillSelected: {
-    backgroundColor: Colors.primary,
-  },
-  agentPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  agentPillTextSelected: {
-    color: '#FFFFFF',
-  },
-  channelRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  channelBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-  },
-  channelBtnSelected: {
-    backgroundColor: Colors.primary,
-  },
-  channelBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  channelBtnTextSelected: {
-    color: '#FFFFFF',
-  },
-  promptInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    padding: 10,
-    fontSize: 13,
-    color: Colors.text,
-    textAlignVertical: 'top',
-    minHeight: 65,
-  },
-  toneRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  toneBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-  },
-  toneBtnSelected: {
-    backgroundColor: '#EEF2FF',
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  toneBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  toneBtnTextSelected: {
-    color: Colors.primary,
-  },
-  previewBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  previewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  previewTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-  },
-  regenBtn: {
+  approvalBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
   },
-  regenText: {
-    fontSize: 11,
+  approvalBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
-    color: Colors.primary,
-  },
-  previewContent: {
-    fontSize: 12,
-    color: Colors.text,
-    lineHeight: 17,
-  },
-  approvalToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  approvalTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  approvalDesc: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    lineHeight: 15,
-    marginTop: 2,
+    color: '#D97706',
   },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#10B981',
+    backgroundColor: '#059669',
     paddingVertical: 14,
-    borderRadius: 16,
-    marginTop: 8,
-    ...Shadows.card,
+    borderRadius: 12,
+    marginBottom: 12,
+    ...Shadows.sm,
   },
   saveBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
     fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  editManualBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  editManualBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  visualFlowWrap: {
+    marginBottom: 20,
+  },
+  nodeCardWrap: {
+    gap: 6,
+  },
+  nodeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    marginLeft: 4,
+  },
+  nodeCard: {
+    padding: 14,
+    borderRadius: 14,
+  },
+  nodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  nodeIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nodeContent: {
+    flex: 1,
+  },
+  nodeTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  nodeDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  nodeEditBtn: {
+    padding: 4,
+  },
+  connectorLine: {
+    width: 2,
+    height: 18,
+    backgroundColor: '#CBD5E1',
+    alignSelf: 'center',
+    marginVertical: 4,
+  },
+  approvalToggleCard: {
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 20,
+  },
+  approvalToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  approvalToggleTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  approvalToggleDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
   },
 });

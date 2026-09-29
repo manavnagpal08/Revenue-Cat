@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 from app.services.automation.registry import in_memory_actions, in_memory_runs, get_now_iso
 from app.services.automation.executor import action_executor
@@ -101,5 +101,15 @@ class AutomationApprovalService:
             "message": "Action successfully rejected."
         }
 
+    @classmethod
+    async def get_pending_actions(cls, business_id: str) -> List[Dict[str, Any]]:
+        """Returns all actions awaiting human review for this business."""
+        pending = [
+            a for a in in_memory_actions.values()
+            if a.get("business_id") == business_id and a.get("status") == "waiting_approval"
+        ]
+        return pending
+
 
 approval_service = AutomationApprovalService()
+
