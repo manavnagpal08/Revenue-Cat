@@ -422,3 +422,120 @@ class WhatsAppMessageSendRequest(BaseModel):
     customer_id: Optional[str] = None
     lead_id: Optional[str] = None
 
+
+# --- PHASE 6: AUTOMATIONS & WORKFLOW ENGINE SCHEMAS ---
+
+class AutomationBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    trigger_type: str  # lead_inactive, invoice_overdue, website_lead_received, daily_summary, lead_qualified, calendar_event_upcoming, payment_received, custom
+    trigger_config: Dict[str, Any] = {}
+    condition_config: Dict[str, Any] = {}
+    agent_type: str = "sales"  # sales, finance, proposal, customer_support, integrations, supervisor
+    action_config: Dict[str, Any] = {}
+    status: str = "active"  # active, paused, draft, error
+    enabled: bool = True
+    requires_approval: bool = True
+
+class AutomationCreate(AutomationBase):
+    business_id: str
+
+class AutomationUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    trigger_type: Optional[str] = None
+    trigger_config: Optional[Dict[str, Any]] = None
+    condition_config: Optional[Dict[str, Any]] = None
+    agent_type: Optional[str] = None
+    action_config: Optional[Dict[str, Any]] = None
+    status: Optional[str] = None
+    enabled: Optional[bool] = None
+    requires_approval: Optional[bool] = None
+
+class AutomationResponse(AutomationBase):
+    id: str
+    business_id: str
+    created_by: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    last_run_at: Optional[datetime] = None
+    next_run_at: Optional[datetime] = None
+    runs_count: Optional[int] = 0
+    success_count: Optional[int] = 0
+
+class AutomationRunResponse(BaseModel):
+    id: str
+    automation_id: str
+    business_id: str
+    status: str  # pending, running, waiting_approval, completed, failed, cancelled, skipped
+    trigger_data: Dict[str, Any] = {}
+    execution_result: Dict[str, Any] = {}
+    error_message: Optional[str] = None
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    actions: List[Dict[str, Any]] = []
+
+class AutomationActionResponse(BaseModel):
+    id: str
+    automation_run_id: str
+    business_id: str
+    action_type: str
+    agent_type: str
+    input_data: Dict[str, Any] = {}
+    output_data: Dict[str, Any] = {}
+    status: str  # pending, waiting_approval, approved, rejected, executed, failed
+    requires_confirmation: bool = True
+    confirmed_by: Optional[str] = None
+    confirmed_at: Optional[datetime] = None
+    executed_at: Optional[datetime] = None
+
+class AutomationActionApprovalRequest(BaseModel):
+    business_id: str
+    confirmed: bool = True
+    note: Optional[str] = None
+
+class AutomationTemplateResponse(BaseModel):
+    id: str
+    business_id: Optional[str] = None
+    name: str
+    description: Optional[str] = None
+    category: str
+    trigger_type: str
+    configuration: Dict[str, Any] = {}
+    is_system_template: bool = True
+    created_at: Optional[datetime] = None
+
+class AutomationAnalyticsResponse(BaseModel):
+    total_runs: int = 0
+    successful_runs: int = 0
+    failed_runs: int = 0
+    skipped_runs: int = 0
+    waiting_approval_runs: int = 0
+    success_rate_percent: float = 0.0
+    active_automations_count: int = 0
+    paused_automations_count: int = 0
+    runs_timeline: List[Dict[str, Any]] = []
+    top_automations: List[Dict[str, Any]] = []
+
+class NotificationCreate(BaseModel):
+    business_id: str
+    title: str
+    message: str
+    type: str = "info"
+    severity: str = "normal"  # low, normal, high, urgent
+    action_data: Optional[Dict[str, Any]] = {}
+    user_id: Optional[str] = None
+
+class NotificationResponse(BaseModel):
+    id: str
+    business_id: str
+    user_id: Optional[str] = None
+    title: str
+    message: str
+    type: str = "info"
+    severity: str = "normal"
+    action_data: Optional[Dict[str, Any]] = {}
+    is_read: bool = False
+    created_at: datetime
+
+

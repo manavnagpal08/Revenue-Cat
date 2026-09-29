@@ -439,3 +439,98 @@ CREATE POLICY "Business integrations access" ON public.integrations
 CREATE POLICY "Business integration events access" ON public.integration_events
     FOR ALL USING (public.is_business_member(business_id));
 
+-- ==============================================================================
+-- 20. AUTOMATIONS & WORKFLOW ENGINE (PHASE 6)
+-- ==============================================================================
+
+-- 20.1 AUTOMATIONS DEFINITION
+CREATE TABLE IF NOT EXISTS public.automations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    trigger_type TEXT NOT NULL, -- 'lead_inactive', 'invoice_overdue', 'website_lead_received', 'daily_summary', 'lead_qualified', 'calendar_event_upcoming', 'payment_received', 'custom'
+    trigger_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    condition_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    agent_type TEXT NOT NULL DEFAULT 'sales', -- 'sales', 'finance', 'proposal', 'customer_support', 'integrations', 'supervisor'
+    action_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status TEXT NOT NULL DEFAULT 'active', -- 'active', 'paused', 'draft', 'error'
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    requires_approval BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    last_run_at TIMESTAMPTZ,
+    next_run_at TIMESTAMPTZ
+);
+
+-- 20.2 AUTOMATION RUNS (Execution History)
+CREATE TABLE IF NOT EXISTS public.automation_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    automation_id UUID NOT NULL REFERENCES public.automations(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'running', 'waiting_approval', 'completed', 'failed', 'cancelled', 'skipped'
+    trigger_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    execution_result JSONB NOT NULL DEFAULT '{}'::jsonb,
+    error_message TEXT,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ
+);
+
+-- 20.3 AUTOMATION ACTIONS (Step Actions & Approvals)
+CREATE TABLE IF NOT EXISTS public.automation_actions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    automation_run_id UUID NOT NULL REFERENCES public.automation_runs(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    action_type TEXT NOT NULL, -- 'send_email', 'send_whatsapp', 'create_task', 'create_calendar_event', 'create_proposal', 'send_notification'
+    agent_type TEXT NOT NULL,
+    input_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    output_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'waiting_approval', 'approved', 'rejected', 'executed', 'failed'
+    requires_confirmation BOOLEAN NOT NULL DEFAULT TRUE,
+    confirmed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    confirmed_at TIMESTAMPTZ,
+    executed_at TIMESTAMPTZ
+);
+
+-- 20.4 AUTOMATION TEMPLATES (Pre-built library)
+CREATE TABLE IF NOT EXISTS public.automation_templates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE, -- NULL for global system templates
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL, -- 'sales', 'finance', 'operations', 'proposals', 'customer'
+    trigger_type TEXT NOT NULL,
+    configuration JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_system_template BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 20.5 INDEXES FOR AUTOMATIONS
+CREATE INDEX IF NOT EXISTS idx_automations_business ON public.automations(business_id, status);
+CREATE INDEX IF NOT EXISTS idx_automations_trigger ON public.automations(trigger_type, enabled);
+CREATE INDEX IF NOT EXISTS idx_automation_runs_biz ON public.automation_runs(business_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_automation_runs_auto ON public.automation_runs(automation_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_automation_actions_run ON public.automation_actions(automation_run_id);
+CREATE INDEX IF NOT EXISTS idx_automation_actions_status ON public.automation_actions(business_id, status);
+CREATE INDEX IF NOT EXISTS idx_automation_templates_cat ON public.automation_templates(category, is_system_template);
+
+-- 20.6 ROW LEVEL SECURITY FOR AUTOMATIONS
+ALTER TABLE public.automations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.automation_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.automation_actions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.automation_templates ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Business automations access" ON public.automations
+    FOR ALL USING (public.is_business_member(business_id));
+
+CREATE POLICY "Business automation runs access" ON public.automation_runs
+    FOR ALL USING (public.is_business_member(business_id));
+
+CREATE POLICY "Business automation actions access" ON public.automation_actions
+    FOR ALL USING (public.is_business_member(business_id));
+
+CREATE POLICY "Business automation templates access" ON public.automation_templates
+    FOR ALL USING (business_id IS NULL OR public.is_business_member(business_id));
+
+

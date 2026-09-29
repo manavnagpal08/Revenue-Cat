@@ -23,6 +23,7 @@ import {
   Building,
   Plus,
   Edit3,
+  Zap,
 } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
@@ -171,6 +172,31 @@ export default function MoreScreen() {
           </View>
           <Text style={styles.usageSub}>Resets on Oct 28, 2026</Text>
         </GlassCard>
+
+        {/* AI Automations Section */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeader}>AI AUTOMATION & WORKFLOWS</Text>
+          <TouchableOpacity onPress={() => router.push('/automations' as any)}>
+            <Text style={styles.seeAllText}>Hub &amp; Rules</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/automations' as any)}>
+          <GlassCard style={styles.settingsGroup}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconBox, { backgroundColor: '#EEF2FF' }]}>
+                  <Zap size={16} color="#4F46E5" />
+                </View>
+                <View>
+                  <Text style={styles.settingLabel}>Workflow Engine</Text>
+                  <Text style={styles.settingSub}>Smart triggers, lead follow-ups &amp; invoice alerts</Text>
+                </View>
+              </View>
+              <ChevronRight size={18} color={Colors.textMuted} />
+            </View>
+          </GlassCard>
+        </TouchableOpacity>
 
         {/* Integrations Section */}
         <View style={styles.sectionHeaderRow}>
