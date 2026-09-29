@@ -195,7 +195,7 @@ export default function CustomerAnalyticsScreen() {
                     <TouchableOpacity
                       key={c.id}
                       style={styles.accountRow}
-                      onPress={() => router.push('/(tabs)/customers')}
+                      onPress={() => router.push('/customers' as any)}
                     >
                       <View style={styles.accountMain}>
                         <Text style={styles.accountName}>{c.name}</Text>

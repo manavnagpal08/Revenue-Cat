@@ -63,7 +63,7 @@ export default function AutomationAnalyticsScreen() {
         <Text style={styles.headerTitle}>Automation & Ops Velocity</Text>
         <TouchableOpacity
           style={styles.manageBtn}
-          onPress={() => router.push('/(tabs)/automations')}
+          onPress={() => router.push('/automations' as any)}
         >
           <Zap size={14} color="#059669" />
           <Text style={styles.manageBtnText}>Workflows</Text>

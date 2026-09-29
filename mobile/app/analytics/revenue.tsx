@@ -211,7 +211,7 @@ export default function RevenueAnalyticsScreen() {
                   <TouchableOpacity
                     key={c.customer_id || i}
                     style={styles.customerRow}
-                    onPress={() => router.push('/(tabs)/customers')}
+                    onPress={() => router.push('/customers' as any)}
                   >
                     <View style={styles.rankCircle}>
                       <Text style={styles.rankText}>#{i + 1}</Text>
