@@ -328,3 +328,97 @@ class HealthResponse(BaseModel):
     environment: str
     database_connected: bool
     version: str = "1.0.0"
+
+# --- INTEGRATION SCHEMAS ---
+class IntegrationResponse(BaseModel):
+    id: str
+    business_id: str
+    provider: str # gmail, google_calendar, whatsapp, website_leads, crm
+    status: str # connected, disconnected, connecting, syncing, error, expired, reauth_required, configuration_required
+    account_name: Optional[str] = None
+    account_email: Optional[str] = None
+    external_account_id: Optional[str] = None
+    scopes: Optional[List[str]] = []
+    last_synced_at: Optional[datetime] = None
+    last_error: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = {}
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class IntegrationConnectURLResponse(BaseModel):
+    provider: str
+    auth_url: str
+    state: str
+
+class IntegrationSyncResponse(BaseModel):
+    provider: str
+    status: str
+    synced_records_count: int = 0
+    message: str
+
+class WebsiteLeadWebhookPayload(BaseModel):
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    message: Optional[str] = None
+    source: Optional[str] = "website_contact_form"
+    website: Optional[str] = None
+    estimated_budget: Optional[float] = None
+    metadata: Optional[Dict[str, Any]] = {}
+
+class EmailMessageItem(BaseModel):
+    id: str
+    thread_id: Optional[str] = None
+    sender: str
+    recipient: str
+    subject: str
+    snippet: Optional[str] = None
+    timestamp: datetime
+    is_unread: bool = False
+
+class EmailDraftRequest(BaseModel):
+    business_id: str
+    to_email: str
+    subject: str
+    body: str
+    lead_id: Optional[str] = None
+    customer_id: Optional[str] = None
+
+class EmailSendRequest(BaseModel):
+    business_id: str
+    to_email: str
+    subject: str
+    body: str
+    draft_id: Optional[str] = None
+    lead_id: Optional[str] = None
+    customer_id: Optional[str] = None
+
+class CalendarEventItem(BaseModel):
+    id: str
+    title: str
+    description: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    location: Optional[str] = None
+    meet_link: Optional[str] = None
+    attendees: List[str] = []
+
+class CalendarEventCreateRequest(BaseModel):
+    business_id: str
+    title: str
+    description: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    attendees: Optional[List[str]] = []
+    location: Optional[str] = None
+    customer_id: Optional[str] = None
+    lead_id: Optional[str] = None
+
+class WhatsAppMessageSendRequest(BaseModel):
+    business_id: str
+    to_phone: str
+    message: str
+    customer_id: Optional[str] = None
+    lead_id: Optional[str] = None
+

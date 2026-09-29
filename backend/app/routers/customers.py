@@ -18,6 +18,9 @@ from app.core.supabase_client import get_supabase_client, get_supabase_admin_cli
 logger = logging.getLogger("soloceo.customers")
 router = APIRouter(prefix="/customers", tags=["Customers"])
 
+# In-memory store for local testing/fallback
+_local_customers: Dict[str, Dict[str, Any]] = {}
+
 @router.get("", response_model=List[CustomerResponse])
 async def list_customers(
     business_id: str = Query(..., description="Active workspace ID"),

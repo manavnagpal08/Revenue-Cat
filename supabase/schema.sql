@@ -390,3 +390,52 @@ CREATE POLICY "Business subscriptions access" ON public.subscriptions
 
 CREATE POLICY "Business notifications access" ON public.notifications
     FOR ALL USING (user_id = auth.uid());
+
+-- 18. INTEGRATIONS
+CREATE TABLE IF NOT EXISTS public.integrations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL, -- 'gmail', 'google_calendar', 'whatsapp', 'website_leads', 'crm'
+    status TEXT NOT NULL DEFAULT 'disconnected', -- 'connected', 'disconnected', 'connecting', 'syncing', 'error', 'expired', 'reauth_required', 'configuration_required'
+    account_name TEXT,
+    account_email TEXT,
+    external_account_id TEXT,
+    access_token_encrypted TEXT,
+    refresh_token_encrypted TEXT,
+    token_expiry TIMESTAMPTZ,
+    scopes JSONB DEFAULT '[]'::jsonb,
+    webhook_secret TEXT,
+    last_synced_at TIMESTAMPTZ,
+    last_error TEXT,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(business_id, provider)
+);
+
+-- 19. INTEGRATION EVENTS
+CREATE TABLE IF NOT EXISTS public.integration_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    integration_id UUID REFERENCES public.integrations(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL, -- 'gmail_email_received', 'calendar_event_created', 'whatsapp_message_received', 'website_lead_created'
+    external_event_id TEXT,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    processed BOOLEAN DEFAULT FALSE,
+    processed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(business_id, event_type, external_event_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_integrations_business ON public.integrations(business_id, provider);
+CREATE INDEX IF NOT EXISTS idx_integration_events_biz_type ON public.integration_events(business_id, event_type, created_at);
+
+ALTER TABLE public.integrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.integration_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Business integrations access" ON public.integrations
+    FOR ALL USING (public.is_business_member(business_id));
+
+CREATE POLICY "Business integration events access" ON public.integration_events
+    FOR ALL USING (public.is_business_member(business_id));
+

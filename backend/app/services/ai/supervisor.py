@@ -9,6 +9,7 @@ from app.services.ai.agents.finance_agent import FinanceAgent
 from app.services.ai.agents.proposal_agent import ProposalAgent
 from app.services.ai.agents.customer_support_agent import CustomerSupportAgent
 from app.services.ai.agents.general_business_agent import GeneralBusinessAgent
+from app.services.ai.agents.integration_agent import IntegrationAgent
 
 logger = logging.getLogger("soloceo_ai_supervisor")
 
@@ -31,12 +32,17 @@ class AISupervisor:
         self.proposal_agent = ProposalAgent(self.provider)
         self.support_agent = CustomerSupportAgent(self.provider)
         self.general_agent = GeneralBusinessAgent(self.provider)
+        self.integration_agent = IntegrationAgent(self.provider)
 
     def route_intent(self, query: str) -> str:
         """
         Deterministic intent classifier for specialized agent routing.
         """
         q = query.lower()
+
+        # External Integration intent (Email, Calendar, WhatsApp, Integrations)
+        if any(w in q for w in ["gmail", "email", "calendar", "meeting", "schedule", "whatsapp", "integration", "connect"]):
+            return "INTEGRATIONS"
 
         # Proposal intent
         if any(w in q for w in ["proposal", "quote", "scope", "deliverable", "contract", "pitch"]):
@@ -95,7 +101,9 @@ class AISupervisor:
         intent = self.route_intent(query)
         agent_result = {}
 
-        if intent == "SALES":
+        if intent == "INTEGRATIONS":
+            agent_result = await self.integration_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})
+        elif intent == "SALES":
             agent_result = await self.sales_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})
         elif intent == "FINANCE":
             agent_result = await self.finance_agent.process(query=query, business_id=business_id, business_name=business_name, context_data={})

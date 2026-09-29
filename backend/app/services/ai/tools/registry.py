@@ -143,6 +143,15 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
         "type": "READ",
         "handler": get_business_brief_tool,
         "parameters": {}
+    },
+
+    # Workspace Integration Tools
+    "get_integrations_status": {
+        "name": "get_integrations_status",
+        "description": "Check connection status of Gmail, Calendar, WhatsApp, and Website Webhooks.",
+        "type": "READ",
+        "handler": lambda business_id: __import__("app.services.integrations.manager", fromlist=["integration_manager"]).integration_manager.list_integrations_status(business_id),
+        "parameters": {}
     }
 }
 
@@ -155,10 +164,18 @@ async def execute_tool(tool_name: str, business_id: str, **kwargs) -> Dict[str, 
     handler = tool_def["handler"]
 
     try:
-        return await handler(business_id=business_id, **kwargs)
+        import inspect
+        if inspect.iscoroutinefunction(handler):
+            return await handler(business_id=business_id, **kwargs)
+        else:
+            res = handler(business_id=business_id, **kwargs)
+            if inspect.isawaitable(res):
+                return await res
+            return res
     except Exception as e:
         return {
             "error": True,
             "tool": tool_name,
             "message": str(e)
         }
+

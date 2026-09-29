@@ -173,57 +173,59 @@ export default function MoreScreen() {
         </GlassCard>
 
         {/* Integrations Section */}
-        <Text style={styles.sectionHeader}>CONNECTED INTEGRATIONS</Text>
-        <GlassCard style={styles.settingsGroup}>
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconBox, { backgroundColor: '#FEE2E2' }]}>
-                <Mail size={16} color="#DC2626" />
-              </View>
-              <View>
-                <Text style={styles.settingLabel}>Gmail</Text>
-                <Text style={styles.settingSub}>Syncing incoming leads & threads</Text>
-              </View>
-            </View>
-            <View style={styles.connectedPill}>
-              <Text style={styles.connectedText}>Connected</Text>
-            </View>
-          </View>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeader}>CONNECTED INTEGRATIONS</Text>
+          <TouchableOpacity onPress={() => router.push('/integrations' as any)}>
+            <Text style={styles.seeAllText}>Manage</Text>
+          </TouchableOpacity>
+        </View>
 
-          <View style={styles.divider} />
+        <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/integrations' as any)}>
+          <GlassCard style={styles.settingsGroup}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconBox, { backgroundColor: '#FEE2E2' }]}>
+                  <Mail size={16} color="#DC2626" />
+                </View>
+                <View>
+                  <Text style={styles.settingLabel}>Gmail</Text>
+                  <Text style={styles.settingSub}>Email intelligence & customer threads</Text>
+                </View>
+              </View>
+              <ChevronRight size={18} color={Colors.textMuted} />
+            </View>
 
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconBox, { backgroundColor: '#DBEAFE' }]}>
-                <Calendar size={16} color="#2563EB" />
-              </View>
-              <View>
-                <Text style={styles.settingLabel}>Google Calendar</Text>
-                <Text style={styles.settingSub}>Tracking meetings & follow-ups</Text>
-              </View>
-            </View>
-            <View style={styles.connectedPill}>
-              <Text style={styles.connectedText}>Connected</Text>
-            </View>
-          </View>
+            <View style={styles.divider} />
 
-          <View style={styles.divider} />
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconBox, { backgroundColor: '#DBEAFE' }]}>
+                  <Calendar size={16} color="#2563EB" />
+                </View>
+                <View>
+                  <Text style={styles.settingLabel}>Google Calendar</Text>
+                  <Text style={styles.settingSub}>Tracking meetings & appointments</Text>
+                </View>
+              </View>
+              <ChevronRight size={18} color={Colors.textMuted} />
+            </View>
 
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconBox, { backgroundColor: '#DCFCE7' }]}>
-                <MessageSquare size={16} color="#16A34A" />
+            <View style={styles.divider} />
+
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconBox, { backgroundColor: '#DCFCE7' }]}>
+                  <MessageSquare size={16} color="#16A34A" />
+                </View>
+                <View>
+                  <Text style={styles.settingLabel}>WhatsApp Business & Leads</Text>
+                  <Text style={styles.settingSub}>Inbound contact forms & messaging</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.settingLabel}>Business Messaging</Text>
-                <Text style={styles.settingSub}>WhatsApp & CRM sync</Text>
-              </View>
+              <ChevronRight size={18} color={Colors.textMuted} />
             </View>
-            <View style={styles.connectedPill}>
-              <Text style={styles.connectedText}>Connected</Text>
-            </View>
-          </View>
-        </GlassCard>
+          </GlassCard>
+        </TouchableOpacity>
 
         {/* Security & Sign Out */}
         <Text style={styles.sectionHeader}>ACCOUNT & SECURITY</Text>
@@ -320,6 +322,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 8,
     marginTop: 4,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  seeAllText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   workspaceCard: {
     marginBottom: 16,
