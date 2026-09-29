@@ -45,30 +45,40 @@ async def list_customers(
         except Exception as e:
             logger.warning(f"Error querying customers: {e}")
 
-    # Seed fallback
-    return [
-        CustomerResponse(
-            id="c1",
-            business_id=business_id,
-            name="Vikram Mehta",
-            company_name="Acme Interiors",
-            email="vikram@acmeinteriors.com",
-            phone="+91 98201 11223",
-            website="https://acmeinteriors.com",
-            status="active",
-            total_revenue=120000.00,
-        ),
-        CustomerResponse(
-            id="c2",
-            business_id=business_id,
-            name="Priya Sharma",
-            company_name="XYZ Studio",
-            email="priya@xyzstudio.in",
-            phone="+91 98302 22334",
-            status="active",
-            total_revenue=85000.00,
-        ),
-    ]
+    # Local store fallback
+    matched = [c for c in _local_customers.values() if c.get("business_id") == business_id]
+    if status_filter:
+        matched = [c for c in matched if c.get("status") == status_filter]
+    if search:
+        matched = [c for c in matched if search.lower() in (c.get("name") or "").lower()]
+    if matched:
+        return [CustomerResponse(**c) for c in matched]
+
+    if business_id == "00000000-0000-0000-0000-000000000002":
+        return [
+            CustomerResponse(
+                id="c1",
+                business_id=business_id,
+                name="Vikram Mehta",
+                company_name="Acme Interiors",
+                email="vikram@acmeinteriors.com",
+                phone="+91 98201 11223",
+                website="https://acmeinteriors.com",
+                status="active",
+                total_revenue=120000.00,
+            ),
+            CustomerResponse(
+                id="c2",
+                business_id=business_id,
+                name="Priya Sharma",
+                company_name="XYZ Studio",
+                email="priya@xyzstudio.in",
+                phone="+91 98302 22334",
+                status="active",
+                total_revenue=85000.00,
+            ),
+        ]
+    return []
 
 @router.post("", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
 async def create_customer(
@@ -89,6 +99,7 @@ async def create_customer(
         except Exception as e:
             logger.error(f"Error creating customer: {e}")
 
+    _local_customers[cust_id] = data
     return CustomerResponse(**data)
 
 @router.get("/{customer_id}", response_model=CustomerDetailResponse)

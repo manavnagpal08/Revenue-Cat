@@ -18,7 +18,12 @@
       "adaptiveIcon": {
         "backgroundColor": "#F8FAFC"
       },
-      "package": "com.soloceo.app"
+      "package": "com.soloceo.app",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -30,6 +35,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "soloceo-mobile-app"
+      }
     }
   }
 }

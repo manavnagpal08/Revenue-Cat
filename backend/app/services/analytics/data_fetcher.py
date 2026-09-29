@@ -260,7 +260,8 @@ def fetch_business_data(business_id: str, start_dt: datetime, end_dt: datetime) 
             ]
 
     if not automation_runs:
-        automation_runs = [log for log in in_memory_logs if log.get("business_id") == business_id]
+        log_list = list(in_memory_logs.values()) if isinstance(in_memory_logs, dict) else list(in_memory_logs)
+        automation_runs = [log for log in log_list if isinstance(log, dict) and log.get("business_id") == business_id]
         if not automation_runs:
             automation_runs = [
                 {

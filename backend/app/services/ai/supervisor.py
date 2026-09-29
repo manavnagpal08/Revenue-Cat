@@ -48,6 +48,10 @@ class AISupervisor:
         if any(w in q for w in ["gmail", "email", "calendar", "meeting", "schedule", "whatsapp", "integration", "connect"]):
             return "INTEGRATIONS"
 
+        # Analytics & Reporting intent
+        if any(w in q for w in ["report", "analytics", "business intelligence", "metric", "insight", "funnel", "growth", "breakdown", "executive summary", "kpi"]):
+            return "ANALYTICS"
+
         # Proposal intent
         if any(w in q for w in ["proposal", "quote", "scope", "deliverable", "contract", "pitch"]):
             return "PROPOSAL"
@@ -63,10 +67,6 @@ class AISupervisor:
         # Customer support intent
         if any(w in q for w in ["customer", "client", "draft a response", "summary of", "email to", "message to"]):
             return "CUSTOMER_SUPPORT"
-
-        # Analytics & Reporting intent
-        if any(w in q for w in ["report", "analytics", "bi", "metric", "insight", "funnel", "growth", "breakdown", "executive summary", "kpi"]):
-            return "ANALYTICS"
 
         # General business intent
         return "GENERAL_BUSINESS"
