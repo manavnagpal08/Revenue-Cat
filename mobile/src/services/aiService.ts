@@ -10,6 +10,47 @@ import { integrationService, IntegrationItem } from './integrationService';
 const BACKEND_URL =
   process.env.EXPO_PUBLIC_API_URL || 'https://revenue-cat.onrender.com';
 
+const GEMINI_API_KEY =
+  process.env.EXPO_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+
+/**
+ * Direct Gemini 2.5 Flash Reasoning Engine
+ */
+async function queryGeminiFlash(systemContext: string, userPrompt: string): Promise<string | null> {
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              text: `${systemContext}\n\nUser Request: "${userPrompt}"\n\nProvide an authoritative, clear, and actionable business response formatted in clean markdown.`,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 600,
+      },
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+    }
+  } catch (e) {
+    console.warn('Gemini 2.5 Flash direct invocation notice:', e);
+  }
+  return null;
+}
+
 /**
  * Log AI events and operations to Supabase audit_logs
  */
@@ -602,20 +643,35 @@ export const aiService = {
       };
     }
 
-    // 9. GENERAL STRATEGIC BRIEF (DEFAULT)
+    // 9. GENERAL STRATEGIC BRIEF (POWERED BY GEMINI 2.5 FLASH)
     const brief = await this.getBusinessBrief(businessId);
     const connectedCount = integrations.filter((i: IntegrationItem) => i.status === 'connected').length;
+
+    const workspaceContext = `
+You are SoloCEO Autonomous Supervisor AI for a solo founder.
+Live Workspace Metrics:
+- Pipeline Leads: ${leads.length} open deals totaling ₹${leads.reduce((s: number, l: Lead) => s + Number(l.value || 0), 0).toLocaleString('en-IN')}
+- Invoices: ${invoices.length} (${invoices.filter((i: Invoice) => i.status === 'paid').length} paid, ${invoices.filter((i: Invoice) => i.status === 'overdue').length} overdue)
+- Revenue Collected: ₹${brief.revenue_collected.toLocaleString('en-IN')}
+- Active Automations: ${automations.length} workflows
+- Connected Channels: ${connectedCount} integrations active
+`;
+
+    const geminiReply = await queryGeminiFlash(workspaceContext, prompt);
+
+    const fallbackMessage =
+      `**Executive Briefing for ${brief.top_opportunity ? brief.top_opportunity.title : 'Your Business'}:**\n\n` +
+      `1. **Sales Pipeline:** ${brief.inactive_leads_count} open opportunities totaling **₹${brief.inactive_leads_value.toLocaleString('en-IN')}**.\n` +
+      `2. **Cash & Collections:** ₹${brief.revenue_collected.toLocaleString('en-IN')} collected. ${brief.overdue_invoices_count > 0 ? `⚠️ ₹${brief.overdue_amount.toLocaleString('en-IN')} overdue across ${brief.overdue_invoices_count} invoices.` : '✅ Zero overdue receivables.'}\n` +
+      `3. **Proposals & Scopes:** ${brief.pending_proposals_count} proposals active (₹${brief.pending_proposals_value.toLocaleString('en-IN')}).\n` +
+      `4. **Integrations & Automations:** ${connectedCount} integrations active, ${automations.length} workflows configured.\n\n` +
+      `Ask me to **create an invoice**, **draft a proposal**, **log a new lead**, or **run an automation** anytime!`;
 
     return {
       conversation_id: convId,
       agent: 'supervisor',
       intent: 'GENERAL_SUMMARY',
-      message: `**Executive Briefing for ${brief.top_opportunity ? brief.top_opportunity.title : 'Your Business'}:**\n\n` +
-        `1. **Sales Pipeline:** ${brief.inactive_leads_count} open opportunities totaling **₹${brief.inactive_leads_value.toLocaleString('en-IN')}**.\n` +
-        `2. **Cash & Collections:** ₹${brief.revenue_collected.toLocaleString('en-IN')} collected. ${brief.overdue_invoices_count > 0 ? `⚠️ ₹${brief.overdue_amount.toLocaleString('en-IN')} overdue across ${brief.overdue_invoices_count} invoices.` : '✅ Zero overdue receivables.'}\n` +
-        `3. **Proposals & Scopes:** ${brief.pending_proposals_count} proposals active (₹${brief.pending_proposals_value.toLocaleString('en-IN')}).\n` +
-        `4. **Integrations & Automations:** ${connectedCount} integrations active, ${automations.length} workflows configured.\n\n` +
-        `Ask me to **create an invoice**, **draft a proposal**, **log a new lead**, or **run an automation** anytime!`,
+      message: geminiReply || fallbackMessage,
       action_cards: [
         {
           type: 'lead_followup',

@@ -78,9 +78,14 @@ export const authService = {
    */
   async signInWithGoogle() {
     const WebBrowser = require('expo-web-browser');
+    const AuthSession = require('expo-auth-session');
     WebBrowser.maybeCompleteAuthSession();
 
-    const redirectUrl = 'soloceo://auth/callback';
+    const redirectUrl = AuthSession.makeRedirectUri({
+      scheme: 'soloceo',
+      path: 'auth/callback',
+    });
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -112,10 +117,10 @@ export const authService = {
     }
 
     if (result.type === 'success' && result.url) {
-      // Extract access token or query params
       const urlStr = result.url;
       const hashIndex = urlStr.indexOf('#');
       const queryIndex = urlStr.indexOf('?');
+
       const paramStr =
         hashIndex !== -1
           ? urlStr.substring(hashIndex + 1)
@@ -124,18 +129,36 @@ export const authService = {
           : '';
 
       const params = new URLSearchParams(paramStr);
+      const code = params.get('code');
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
 
+      // 1. Handle PKCE Code Exchange
+      if (code) {
+        const exchangeRes = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeRes.data?.user) {
+          const u = exchangeRes.data.user;
+          try {
+            await supabase.from('profiles').upsert({
+              id: u.id,
+              email: u.email,
+              full_name: u.user_metadata?.full_name || u.email?.split('@')[0] || 'Founder',
+              avatar_url: u.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+            });
+          } catch {}
+          return exchangeRes.data;
+        }
+      }
+
+      // 2. Handle Implicit Hash Tokens
       if (accessToken && refreshToken) {
         const setRes = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
         if (setRes.data?.user) {
-          // Upsert profile
+          const u = setRes.data.user;
           try {
-            const u = setRes.data.user;
             await supabase.from('profiles').upsert({
               id: u.id,
               email: u.email,
@@ -148,7 +171,7 @@ export const authService = {
       }
     }
 
-    throw new Error('Could not authenticate Google session tokens.');
+    throw new Error('Could not authenticate Google session tokens. Please ensure Google OAuth redirect URLs include soloceo:// in Supabase.');
   },
 
   /**

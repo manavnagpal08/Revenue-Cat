@@ -53,7 +53,7 @@ export default function PaywallScreen() {
   const handlePurchase = async () => {
     setPurchasing(true);
     try {
-      const updated = await billingService.upgradePlan(businessId, selectedPlan);
+      const updated = await billingService.upgradePlan(businessId, selectedPlan, false);
       setSubscription(updated);
       Alert.alert(
         'Subscription Activated! 🚀',
@@ -61,7 +61,37 @@ export default function PaywallScreen() {
         [{ text: 'Continue Operating', onPress: () => router.back() }]
       );
     } catch (err: any) {
-      Alert.alert('Purchase Notice', err.message || 'Could not complete subscription upgrade.');
+      if (err.message && err.message.includes('Google Play')) {
+        // Show sandbox option
+        Alert.alert(
+          'Google Play Store Sandbox',
+          `Google Play Billing is currently in sandbox/testing mode.\n\nWould you like to simulate and activate the ${selectedPlan.toUpperCase()} test subscription for this workspace?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Simulate Test Purchase',
+              onPress: async () => {
+                setPurchasing(true);
+                try {
+                  const updated = await billingService.upgradePlan(businessId, selectedPlan, true);
+                  setSubscription(updated);
+                  Alert.alert(
+                    'Sandbox Test Plan Activated! 🧪',
+                    `Sandbox test activated for ${selectedPlan.toUpperCase()} plan.`,
+                    [{ text: 'OK', onPress: () => router.back() }]
+                  );
+                } catch (e: any) {
+                  Alert.alert('Error', e.message);
+                } finally {
+                  setPurchasing(false);
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Purchase Notice', err.message || 'Could not complete subscription upgrade.');
+      }
     } finally {
       setPurchasing(false);
     }

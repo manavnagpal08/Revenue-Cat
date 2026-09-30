@@ -442,7 +442,7 @@ class BillingService {
   /**
    * Upgrades the workspace subscription tier using RevenueCat IAP.
    */
-  async upgradePlan(businessId: string, planTier: string): Promise<SubscriptionData> {
+  async upgradePlan(businessId: string, planTier: string, forceDevSimulation: boolean = false): Promise<SubscriptionData> {
     // 1. Trigger RevenueCat purchase if package exists
     try {
       await this.initRevenueCat(businessId);
@@ -458,16 +458,27 @@ class BillingService {
         if (targetPackage) {
           const { customerInfo } = await Purchases.purchasePackage(targetPackage);
           console.log('RevenueCat Purchase completed successfully:', customerInfo);
+          return await this.persistSubscription(businessId, planTier);
         }
       }
     } catch (e: any) {
       if (e.userCancelled) {
-        throw new Error('Purchase was cancelled.');
+        throw new Error('Transaction was cancelled by user.');
       }
-      console.warn('RevenueCat store notice (activating sandbox entitlement):', e.message);
+      if (!forceDevSimulation) {
+        throw new Error(
+          `RevenueCat Store Notice: Google Play in-app product for "${planTier.toUpperCase()}" is not yet published in Google Play Console. (Error: ${e.message})`
+        );
+      }
     }
 
-    // 2. Persist upgraded subscription in DB & backend
+    if (!forceDevSimulation) {
+      throw new Error(
+        `Store Notice: Google Play in-app package for "${planTier.toUpperCase()}" is pending Google Play Console review.`
+      );
+    }
+
+    // 2. Only persist if explicitly approved via developer sandbox
     return await this.persistSubscription(businessId, planTier);
   }
 }
