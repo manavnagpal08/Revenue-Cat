@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ScrollView,
   View,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Plus, AlertCircle, CheckCircle, FileText, Send, DollarSign } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
@@ -29,7 +29,7 @@ export default function FinanceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'overdue' | 'paid'>('all');
 
-  const loadInvoices = async () => {
+  const loadInvoices = useCallback(async () => {
     if (!currentBusiness?.id) return;
     try {
       const list = await invoiceService.listInvoices(currentBusiness.id);
@@ -40,11 +40,17 @@ export default function FinanceScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [currentBusiness?.id]);
 
   useEffect(() => {
     loadInvoices();
-  }, [currentBusiness?.id]);
+  }, [loadInvoices]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadInvoices();
+    }, [loadInvoices])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

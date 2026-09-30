@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ScrollView,
   View,
@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Plus, Search, FileText, ArrowLeft, CheckCircle, Clock, Send } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
@@ -29,7 +29,7 @@ export default function ProposalsListScreen() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'sent' | 'accepted'>('all');
 
-  const loadProposals = async () => {
+  const loadProposals = useCallback(async () => {
     if (!currentBusiness?.id) return;
     try {
       const list = await proposalService.listProposals(
@@ -44,11 +44,17 @@ export default function ProposalsListScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [currentBusiness?.id, statusFilter, search]);
 
   useEffect(() => {
     loadProposals();
-  }, [currentBusiness?.id, statusFilter, search]);
+  }, [loadProposals]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProposals();
+    }, [loadProposals])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

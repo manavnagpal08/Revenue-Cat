@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   Zap,
   Plus,
@@ -53,7 +53,7 @@ export default function AutomationHubScreen() {
   const [analytics, setAnalytics] = useState<AutomationAnalytics | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'paused' | 'my'>('all');
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [autoList, limitsData, analyticsData] = await Promise.all([
         automationService.getAutomations(businessId).catch(() => []),
@@ -69,11 +69,17 @@ export default function AutomationHubScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [businessId]);
 
   useEffect(() => {
     loadData();
-  }, [businessId]);
+  }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

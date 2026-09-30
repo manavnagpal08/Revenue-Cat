@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Search, SlidersHorizontal, Mail, MessageSquare, Send, ArrowLeft, Plus } from 'lucide-react-native';
 import { Colors } from '../../src/constants/theme';
 import { supabase } from '../../src/lib/supabase';
@@ -93,6 +93,12 @@ export default function CommunicationsInboxScreen() {
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchConversations();
+    }, [fetchConversations])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

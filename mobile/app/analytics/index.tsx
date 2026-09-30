@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   TrendingUp,
@@ -68,6 +68,12 @@ export default function AnalyticsDashboardScreen() {
   useEffect(() => {
     fetchOverview();
   }, [fetchOverview]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOverview();
+    }, [fetchOverview])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

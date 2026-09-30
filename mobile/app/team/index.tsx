@@ -13,7 +13,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   Plus,
@@ -109,6 +109,12 @@ export default function TeamMembersScreen() {
   useEffect(() => {
     fetchMembers();
   }, [fetchMembers]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchMembers();
+    }, [fetchMembers])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

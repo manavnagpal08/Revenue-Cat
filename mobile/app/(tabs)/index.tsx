@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ScrollView,
   View,
@@ -8,7 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
   Sparkles,
   TrendingUp,
@@ -49,7 +49,7 @@ export default function HomeScreen() {
   const [brief, setBrief] = useState<AIBusinessBrief | null>(null);
   const [topLead, setTopLead] = useState<Lead | null>(null);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     if (!currentBusiness?.id) return;
     try {
       const [metrics, leads, aiBrief] = await Promise.all([
@@ -66,17 +66,25 @@ export default function HomeScreen() {
       if (openLeads.length > 0) {
         openLeads.sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
         setTopLead(openLeads[0]);
+      } else {
+        setTopLead(null);
       }
     } catch (err) {
       console.warn('Error loading dashboard:', err);
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [currentBusiness?.id]);
 
   useEffect(() => {
     loadDashboardData();
-  }, [currentBusiness?.id]);
+  }, [loadDashboardData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboardData();
+    }, [loadDashboardData])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
