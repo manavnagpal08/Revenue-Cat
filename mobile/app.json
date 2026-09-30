@@ -8,6 +8,8 @@
     "userInterfaceStyle": "light",
     "scheme": "soloceo",
     "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
       "backgroundColor": "#F8FAFC"
     },
     "ios": {
@@ -16,6 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F8FAFC"
       },
       "package": "com.soloceo.app",
