@@ -28,6 +28,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { dashboardService } from '../../src/services/dashboardService';
 import { leadService } from '../../src/services/leadService';
 import { aiService } from '../../src/services/aiService';
+import { RevenueCatAdBanner } from '../../src/components/RevenueCatAdBanner';
 import { BusinessKPIs, Lead, AIBusinessBrief } from '../../src/types';
 
 export default function HomeScreen() {
@@ -150,34 +151,9 @@ export default function HomeScreen() {
           </GlassCard>
         </View>
 
-        {/* RevenueCat Subscriptions & Upgrade Promo Card */}
+        {/* RevenueCat Subscriptions & Partner Ad Banner */}
         <View style={styles.sectionContainer}>
-          <TouchableOpacity
-            activeOpacity={0.88}
-            onPress={() => router.push('/paywall')}
-            style={styles.revenueCatPromoCard}
-          >
-            <View style={styles.rcPromoLeft}>
-              <View style={styles.rcIconCircle}>
-                <Sparkles size={16} color="#F59E0B" />
-              </View>
-              <View style={styles.rcPromoContent}>
-                <View style={styles.rcBadgeRow}>
-                  <Text style={styles.rcTitle}>RevenueCat Subscriptions</Text>
-                  <View style={styles.rcActivePill}>
-                    <Text style={styles.rcActivePillText}>BUSINESS TIER</Text>
-                  </View>
-                </View>
-                <Text style={styles.rcSubtitle}>
-                  250 AI Credits/mo • WhatsApp Cloud API • 25 Active Workflows
-                </Text>
-              </View>
-            </View>
-            <View style={styles.rcUpgradeBtn}>
-              <Text style={styles.rcUpgradeBtnText}>Upgrade</Text>
-              <ArrowRight size={12} color="#059669" />
-            </View>
-          </TouchableOpacity>
+          <RevenueCatAdBanner variant="hero" />
         </View>
 
         {/* 4 Core Financial & Pipeline KPIs */}

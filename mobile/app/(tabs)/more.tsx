@@ -31,6 +31,7 @@ import { GlassButton } from '../../src/components/GlassButton';
 import { WorkspaceSwitcherModal } from '../../src/components/WorkspaceSwitcherModal';
 import { useAuthStore } from '../../src/store/authStore';
 import { billingService, SubscriptionData, UsageSummary } from '../../src/services/billingService';
+import { RevenueCatAdBanner } from '../../src/components/RevenueCatAdBanner';
 
 export default function MoreScreen() {
   const router = useRouter();
@@ -222,6 +223,9 @@ export default function MoreScreen() {
             </Text>
           </GlassCard>
         </TouchableOpacity>
+
+        {/* RevenueCat Monetization & Partner Power-Up Banner */}
+        <RevenueCatAdBanner variant="sales" style={{ marginTop: 12, marginBottom: 4 }} />
 
         {/* Analytics & Business Intelligence Section */}
         <View style={styles.sectionHeaderRow}>
