@@ -36,44 +36,40 @@ export default function RootLayout() {
     initialize();
     const timer = setTimeout(() => {
       setTimedOut(true);
-    }, 1500);
+    }, 1200);
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (!isInitialized && !timedOut) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-    const inOnboardingGroup = segments[0] === '(onboarding)';
-
-    if (!session) {
-      // Not logged in -> go to login
-      if (!inAuthGroup) {
-        router.replace('/(auth)/login');
-      }
-    } else if (businesses.length === 0 && !currentBusiness) {
-      // Logged in but no business -> go to onboarding
-      if (!inOnboardingGroup) {
-        router.replace('/(onboarding)/setup-business');
-      }
-    } else {
-      // Logged in with business -> if on auth or onboarding, go to tabs
-      if (inAuthGroup || inOnboardingGroup) {
-        router.replace('/(tabs)');
-      }
-    }
-  }, [isInitialized, session, currentBusiness, businesses, segments, timedOut]);
-
   const isReady = (isInitialized && (fontsLoaded || !!fontError)) || timedOut;
 
-  if (!isReady) {
-    return (
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <AnimatedSplashScreen message="Restoring business session..." />
-      </SafeAreaProvider>
-    );
-  }
+  useEffect(() => {
+    if (!isReady) return;
+
+    const timer = setTimeout(() => {
+      try {
+        const inAuthGroup = segments[0] === '(auth)';
+        const inOnboardingGroup = segments[0] === '(onboarding)';
+
+        if (!session) {
+          if (!inAuthGroup) {
+            router.replace('/(auth)/login');
+          }
+        } else if (businesses.length === 0 && !currentBusiness) {
+          if (!inOnboardingGroup) {
+            router.replace('/(onboarding)/setup-business');
+          }
+        } else {
+          if (inAuthGroup || inOnboardingGroup) {
+            router.replace('/(tabs)');
+          }
+        }
+      } catch (navErr) {
+        console.warn('Navigation redirect notice:', navErr);
+      }
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [isReady, session, currentBusiness, businesses, segments]);
 
   return (
     <SafeAreaProvider>
@@ -119,6 +115,12 @@ export default function RootLayout() {
               }}
             />
           </Stack>
+
+          {!isReady && (
+            <View style={StyleSheet.absoluteFillObject}>
+              <AnimatedSplashScreen message="Restoring business session..." />
+            </View>
+          )}
         </View>
       </View>
     </SafeAreaProvider>
