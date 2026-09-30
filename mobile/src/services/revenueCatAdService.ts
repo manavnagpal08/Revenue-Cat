@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import Purchases from 'react-native-purchases';
 import { supabase } from '../lib/supabase';
 import { billingService } from './billingService';
@@ -65,17 +66,21 @@ class RevenueCatAdService {
    */
   async isAdFree(businessId: string): Promise<boolean> {
     try {
-      // 1. Check RevenueCat SDK active entitlements
-      const customerInfo = await Purchases.getCustomerInfo();
-      const activeEntitlements = Object.keys(customerInfo.entitlements.active || {});
-      if (
-        activeEntitlements.includes('pro') ||
-        activeEntitlements.includes('business') ||
-        activeEntitlements.includes('starter') ||
-        activeEntitlements.includes('pro_access') ||
-        activeEntitlements.includes('business_access')
-      ) {
-        return true;
+      if (Platform.OS !== 'web') {
+        const isConfigured = await Purchases.isConfigured();
+        if (isConfigured) {
+          const customerInfo = await Purchases.getCustomerInfo();
+          const activeEntitlements = Object.keys(customerInfo.entitlements.active || {});
+          if (
+            activeEntitlements.includes('pro') ||
+            activeEntitlements.includes('business') ||
+            activeEntitlements.includes('starter') ||
+            activeEntitlements.includes('pro_access') ||
+            activeEntitlements.includes('business_access')
+          ) {
+            return true;
+          }
+        }
       }
     } catch (e) {
       // Offline / sandbox fallback check
@@ -103,12 +108,16 @@ class RevenueCatAdService {
     const revenue = placement?.ecpm_usd || 0.03;
 
     try {
-      // Pass custom subscriber attributes to RevenueCat for ad attribution
-      await Purchases.setAttributes({
-        last_ad_placement: placementId,
-        last_ad_timestamp: new Date().toISOString(),
-        ad_reward_claimed: rewardClaimed ? 'true' : 'false',
-      });
+      if (Platform.OS !== 'web') {
+        const isConfigured = await Purchases.isConfigured();
+        if (isConfigured) {
+          await Purchases.setAttributes({
+            last_ad_placement: placementId,
+            last_ad_timestamp: new Date().toISOString(),
+            ad_reward_claimed: rewardClaimed ? 'true' : 'false',
+          });
+        }
+      }
     } catch (e) {
       console.warn('RevenueCat ad attribute sync notice:', e);
     }

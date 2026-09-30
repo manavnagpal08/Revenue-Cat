@@ -95,21 +95,22 @@ export interface BillingHistoryItem {
 class BillingService {
   private isConfigured = false;
 
-  constructor() {
-    this.initRevenueCat();
-  }
-
   async initRevenueCat(userId?: string) {
-    if (this.isConfigured) return;
+    if (Platform.OS === 'web') return;
     try {
+      const isAlreadyConfigured = await Purchases.isConfigured();
+      if (isAlreadyConfigured) {
+        this.isConfigured = true;
+        return;
+      }
       Purchases.setLogLevel(LOG_LEVEL.DEBUG);
       Purchases.configure({
         apiKey: REVENUECAT_PUBLIC_KEY,
         appUserID: userId || undefined,
       });
       this.isConfigured = true;
-    } catch (e) {
-      console.warn('RevenueCat SDK configuration notice:', e);
+    } catch (e: any) {
+      console.warn('RevenueCat SDK configuration notice:', e?.message);
     }
   }
 
