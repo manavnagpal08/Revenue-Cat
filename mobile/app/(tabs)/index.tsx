@@ -142,6 +142,36 @@ export default function HomeScreen() {
           </GlassCard>
         </View>
 
+        {/* RevenueCat Subscriptions & Upgrade Promo Card */}
+        <View style={styles.sectionContainer}>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            onPress={() => router.push('/paywall')}
+            style={styles.revenueCatPromoCard}
+          >
+            <View style={styles.rcPromoLeft}>
+              <View style={styles.rcIconCircle}>
+                <Sparkles size={16} color="#F59E0B" />
+              </View>
+              <View style={styles.rcPromoContent}>
+                <View style={styles.rcBadgeRow}>
+                  <Text style={styles.rcTitle}>RevenueCat Subscriptions</Text>
+                  <View style={styles.rcActivePill}>
+                    <Text style={styles.rcActivePillText}>BUSINESS TIER</Text>
+                  </View>
+                </View>
+                <Text style={styles.rcSubtitle}>
+                  250 AI Credits/mo • WhatsApp Cloud API • 25 Active Workflows
+                </Text>
+              </View>
+            </View>
+            <View style={styles.rcUpgradeBtn}>
+              <Text style={styles.rcUpgradeBtnText}>Upgrade</Text>
+              <ArrowRight size={12} color="#059669" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* 4 Core Financial & Pipeline KPIs */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
@@ -433,6 +463,80 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Manrope_600SemiBold',
     color: Colors.primary,
+  },
+  revenueCatPromoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    ...Shadows.sm,
+  },
+  rcPromoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 8,
+  },
+  rcIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rcPromoContent: {
+    flex: 1,
+  },
+  rcBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  rcTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#0F172A',
+  },
+  rcActivePill: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  rcActivePillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#059669',
+  },
+  rcSubtitle: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontFamily: 'Manrope_400Regular',
+    lineHeight: 16,
+  },
+  rcUpgradeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  rcUpgradeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
+    color: '#059669',
   },
   briefCard: {
     backgroundColor: '#FFFFFF',

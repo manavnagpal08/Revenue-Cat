@@ -225,9 +225,20 @@ export default function AICommandCenterScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.clearBtn} onPress={clearChat}>
-          <Trash2 size={16} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        <View style={styles.headerRightRow}>
+          <TouchableOpacity
+            style={styles.creditsPill}
+            onPress={() => router.push('/paywall')}
+            activeOpacity={0.8}
+          >
+            <Sparkles size={12} color="#D97706" />
+            <Text style={styles.creditsText}>232 / 250 Credits</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.clearBtn} onPress={clearChat}>
+            <Trash2 size={16} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -439,6 +450,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  creditsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  creditsText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#D97706',
   },
   scrollContent: {
     padding: 16,
