@@ -100,15 +100,18 @@ export default function LoginScreen() {
     setErrorMessage(null);
     setGoogleLoading(true);
     try {
-      await authService.signInWithGoogle();
+      const authResult: any = await authService.signInWithGoogle();
+      const authenticatedUser = authResult?.user;
       
-      const userEmail = email.trim().toLowerCase() || 'founder@soloceo.app';
-      const rawName = userEmail.split('@')[0].replace(/[._-]+/g, ' ');
+      const userEmail = authenticatedUser?.email || email.trim().toLowerCase() || 'founder@soloceo.app';
+      const rawName = authenticatedUser?.user_metadata?.full_name || userEmail.split('@')[0].replace(/[._-]+/g, ' ');
       const userName = rawName
         .split(' ')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ') || 'Google Founder';
-      const userId = 'google-' + Date.now();
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ') || 'Founder';
+      const userId = authenticatedUser?.id || 'usr-' + Date.now();
+      const userAvatar = authenticatedUser?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200';
+
       const bizName = `${userName}'s Studio`;
       const bizId = 'biz-' + Date.now();
 
@@ -119,7 +122,7 @@ export default function LoginScreen() {
           id: userId,
           email: userEmail,
           full_name: userName,
-          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+          avatar_url: userAvatar,
         },
         businesses: [
           {

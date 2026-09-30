@@ -85,11 +85,13 @@ export default function RegisterScreen() {
     setErrorMessage(null);
     setGoogleLoading(true);
     try {
-      await authService.signInWithGoogle();
+      const authResult: any = await authService.signInWithGoogle();
+      const authenticatedUser = authResult?.user;
       
-      const newUserId = 'google-' + Date.now();
-      const userEmail = email.trim().toLowerCase() || 'founder@soloceo.app';
-      const userFullName = fullName.trim() || userEmail.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Founder';
+      const newUserId = authenticatedUser?.id || 'google-' + Date.now();
+      const userEmail = authenticatedUser?.email || email.trim().toLowerCase() || 'founder@soloceo.app';
+      const userFullName = fullName.trim() || authenticatedUser?.user_metadata?.full_name || userEmail.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Founder';
+      const userAvatar = authenticatedUser?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200';
 
       useAuthStore.setState({
         session: { user: { id: newUserId, email: userEmail } } as any,
@@ -98,7 +100,7 @@ export default function RegisterScreen() {
           id: newUserId,
           email: userEmail,
           full_name: userFullName,
-          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+          avatar_url: userAvatar,
         },
         businesses: [],
         currentBusiness: null,
