@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,8 +21,13 @@ import {
   ChevronRight,
   Plus,
   Layers,
+  Zap,
+  CheckCircle2,
+  RefreshCw,
 } from 'lucide-react-native';
-import { Colors } from '../../src/constants/theme';
+import { Colors, Shadows } from '../../src/constants/theme';
+import { useAuthStore } from '../../src/store/authStore';
+import { integrationService } from '../../src/services/integrationService';
 
 interface ToolItem {
   id: string;
@@ -33,57 +40,114 @@ interface ToolItem {
   isManage?: boolean;
 }
 
-const mainTools: ToolItem[] = [
-  {
-    id: 'gmail',
-    name: 'Gmail',
-    icon: Mail,
-    iconColor: '#EA4335',
-    iconBg: '#FEE2E2',
-    status: 'Connected',
-    subtext: 'rahul@acmestudio.com',
-    isManage: true,
-  },
-  {
-    id: 'calendar',
-    name: 'Google Calendar',
-    icon: Calendar,
-    iconColor: '#2563EB',
-    iconBg: '#DBEAFE',
-    status: 'Connected',
-    subtext: '3 calendars synced',
-    isManage: true,
-  },
-  {
-    id: 'whatsapp',
-    name: 'WhatsApp Business',
-    icon: MessageCircle,
-    iconColor: '#059669',
-    iconBg: '#ECFDF5',
-    status: 'Not Connected',
-    subtext: 'Connect to start messaging',
-    isManage: false,
-  },
-  {
-    id: 'website',
-    name: 'Website / Leads',
-    icon: Globe,
-    iconColor: '#4F46E5',
-    iconBg: '#EEF2FF',
-    status: 'Connected',
-    subtext: 'Receiving leads via webhook',
-    isManage: true,
-  },
-];
-
-const moreTools = [
-  { id: 'slack', name: 'Slack', color: '#E11D48' },
-  { id: 'zapier', name: 'Zapier', color: '#F97316' },
-  { id: 'notion', name: 'Notion', color: '#0F172A' },
-];
-
 export default function IntegrationsHubScreen() {
   const router = useRouter();
+  const { currentBusiness, profile } = useAuthStore();
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const userEmail = profile?.email || 'founder@soloceo.app';
+
+  const [tools, setTools] = useState<ToolItem[]>([
+    {
+      id: 'gmail',
+      name: 'Gmail',
+      icon: Mail,
+      iconColor: '#EA4335',
+      iconBg: '#FEE2E2',
+      status: 'Connected',
+      subtext: userEmail,
+      isManage: true,
+    },
+    {
+      id: 'calendar',
+      name: 'Google Calendar',
+      icon: Calendar,
+      iconColor: '#2563EB',
+      iconBg: '#DBEAFE',
+      status: 'Connected',
+      subtext: '3 calendars synced',
+      isManage: true,
+    },
+    {
+      id: 'whatsapp',
+      name: 'WhatsApp Business',
+      icon: MessageCircle,
+      iconColor: '#059669',
+      iconBg: '#ECFDF5',
+      status: 'Connected',
+      subtext: 'Meta Cloud API Connected',
+      isManage: true,
+    },
+    {
+      id: 'website',
+      name: 'Website / Inbound Leads',
+      icon: Globe,
+      iconColor: '#4F46E5',
+      iconBg: '#EEF2FF',
+      status: 'Connected',
+      subtext: 'Receiving leads via webhook',
+      isManage: true,
+    },
+  ]);
+
+  const moreTools = [
+    { id: 'slack', name: 'Slack', color: '#E11D48', iconBg: '#FFE4E6' },
+    { id: 'zapier', name: 'Zapier', color: '#F97316', iconBg: '#FFEDD5' },
+    { id: 'notion', name: 'Notion', color: '#0F172A', iconBg: '#F1F5F9' },
+  ];
+
+  const loadIntegrations = async () => {
+    if (!currentBusiness?.id) return;
+    try {
+      const items = await integrationService.listIntegrations(currentBusiness.id);
+      if (items && items.length > 0) {
+        setTools((prev) =>
+          prev.map((tool) => {
+            const match = items.find((i) => i.provider === tool.id || (tool.id === 'website' && i.provider === 'website_leads'));
+            if (match) {
+              return {
+                ...tool,
+                status: match.status === 'connected' ? 'Connected' : 'Not Connected',
+                subtext: match.account_email || (match.status === 'connected' ? userEmail : 'Connect to start'),
+              };
+            }
+            return tool;
+          })
+        );
+      }
+    } catch (e) {
+      console.warn('Error loading integrations:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadIntegrations();
+  }, [currentBusiness?.id]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadIntegrations();
+  };
+
+  const toggleConnection = (toolId: string) => {
+    setTools((prev) =>
+      prev.map((t) => {
+        if (t.id === toolId) {
+          const nextConnected = t.status !== 'Connected';
+          return {
+            ...t,
+            status: nextConnected ? 'Connected' : 'Not Connected',
+            subtext: nextConnected ? userEmail : 'Connect to enable sync',
+            isManage: nextConnected,
+          };
+        }
+        return t;
+      })
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -104,14 +168,18 @@ export default function IntegrationsHubScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+      >
         <Text style={styles.sectionSubtitle}>
-          Connect your tools to streamline your business
+          Connect your essential operational tools to power AI automation
         </Text>
 
         {/* Main Tools Cards */}
         <View style={styles.toolsList}>
-          {mainTools.map((tool) => {
+          {tools.map((tool) => {
             const Icon = tool.icon;
             const isConnected = tool.status === 'Connected';
             return (
@@ -138,7 +206,7 @@ export default function IntegrationsHubScreen() {
                     styles.actionBtn,
                     isConnected ? styles.actionBtnManage : styles.actionBtnConnect,
                   ]}
-                  onPress={() => router.push(`/integrations/${tool.id}`)}
+                  onPress={() => router.push(`/integrations/${tool.id}` as any)}
                 >
                   <Text
                     style={[
@@ -164,14 +232,14 @@ export default function IntegrationsHubScreen() {
                 key={m.id}
                 style={[styles.moreToolRow, !isLast && styles.moreToolRowBorder]}
                 activeOpacity={0.7}
-                onPress={() => Alert.alert(m.name, `${m.name} integration is coming soon in Q4!`)}
+                onPress={() => router.push(`/integrations/${m.id}` as any)}
               >
-                <View style={styles.moreIconBox}>
+                <View style={[styles.moreIconBox, { backgroundColor: m.iconBg }]}>
                   <Layers size={16} color={m.color} />
                 </View>
                 <Text style={styles.moreToolName}>{m.name}</Text>
-                <View style={styles.comingSoonBadge}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
+                <View style={styles.connectPill}>
+                  <Text style={styles.connectPillText}>Available</Text>
                 </View>
                 <ChevronRight size={18} color="#94A3B8" />
               </TouchableOpacity>
@@ -210,6 +278,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: '#0F172A',
     letterSpacing: -0.3,
   },
@@ -222,16 +291,18 @@ const styles = StyleSheet.create({
   activityBtnText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: '#059669',
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingBottom: 60,
+    paddingBottom: 100,
   },
   sectionSubtitle: {
     fontSize: 13,
     color: '#64748B',
+    fontFamily: 'Manrope_400Regular',
     marginBottom: 16,
   },
   toolsList: {
@@ -246,11 +317,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     gap: 12,
+    ...Shadows.sm,
   },
   iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -258,15 +330,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   toolName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: '#0F172A',
+    marginBottom: 2,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 3,
   },
   statusDot: {
     width: 6,
@@ -274,36 +347,39 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   toolSubtext: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#64748B',
+    fontFamily: 'Manrope_400Regular',
   },
   actionBtn: {
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 10,
   },
-  actionBtnManage: {
-    backgroundColor: '#F1F5F9',
-  },
   actionBtnConnect: {
     backgroundColor: '#059669',
+  },
+  actionBtnManage: {
+    backgroundColor: '#F1F5F9',
   },
   actionBtnText: {
     fontSize: 12,
     fontWeight: '700',
-  },
-  actionBtnTextManage: {
-    color: '#475569',
+    fontFamily: 'Manrope_700Bold',
   },
   actionBtnTextConnect: {
     color: '#FFFFFF',
   },
+  actionBtnTextManage: {
+    color: '#334155',
+  },
   moreHeader: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: '#0F172A',
     marginTop: 24,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   moreToolsCard: {
     backgroundColor: '#FFFFFF',
@@ -311,6 +387,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     overflow: 'hidden',
+    ...Shadows.sm,
   },
   moreToolRow: {
     flexDirection: 'row',
@@ -325,27 +402,28 @@ const styles = StyleSheet.create({
   moreIconBox: {
     width: 32,
     height: 32,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   moreToolName: {
     flex: 1,
-    fontSize: 13.5,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: '#0F172A',
   },
-  comingSoonBadge: {
-    backgroundColor: '#F1F5F9',
+  connectPill: {
+    backgroundColor: '#ECFDF5',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     marginRight: 4,
   },
-  comingSoonText: {
+  connectPillText: {
     fontSize: 10.5,
-    fontWeight: '600',
-    color: '#64748B',
+    fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
+    color: '#059669',
   },
 });

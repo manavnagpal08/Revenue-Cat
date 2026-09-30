@@ -422,11 +422,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   headerSub: {
     fontSize: 12,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
   },
   clearBtn: {
     width: 36,
@@ -448,6 +450,7 @@ const styles = StyleSheet.create({
   promptsHeader: {
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.textSecondary,
     letterSpacing: 0.8,
     marginBottom: 8,
@@ -470,6 +473,7 @@ const styles = StyleSheet.create({
   promptChipText: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: Colors.text,
   },
   messageWrapper: {
@@ -493,6 +497,7 @@ const styles = StyleSheet.create({
   agentBadgeText: {
     fontSize: 10,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     letterSpacing: 0.6,
   },
   messageCard: {
@@ -515,10 +520,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
     lineHeight: 21,
+    fontFamily: 'Manrope_400Regular',
   },
   userMessageText: {
     color: '#FFFFFF',
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
   },
   actionCardsContainer: {
     marginTop: 14,
@@ -538,11 +545,13 @@ const styles = StyleSheet.create({
   actionCardTitle: {
     fontSize: 14,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   actionCardDesc: {
     fontSize: 12,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     marginTop: 3,
     lineHeight: 17,
   },
@@ -557,6 +566,7 @@ const styles = StyleSheet.create({
   actionCardBtnText: {
     fontSize: 12,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.primaryDark,
   },
   aiLoadingBox: {
@@ -572,6 +582,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.primaryDark,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -594,6 +605,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 11,
     fontSize: 14,
+    fontFamily: 'Manrope_500Medium',
     color: Colors.text,
   },
   sendButton: {
@@ -638,11 +650,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   modalDesc: {
     fontSize: 13,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     lineHeight: 18,
     marginBottom: 12,
   },
@@ -654,6 +668,7 @@ const styles = StyleSheet.create({
   payloadType: {
     fontSize: 12,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.primary,
     marginBottom: 4,
   },

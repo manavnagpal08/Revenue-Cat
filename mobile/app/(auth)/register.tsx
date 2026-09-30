@@ -88,13 +88,16 @@ export default function RegisterScreen() {
       await authService.signInWithGoogle();
       
       const newUserId = 'google-' + Date.now();
+      const userEmail = email.trim().toLowerCase() || 'founder@soloceo.app';
+      const userFullName = fullName.trim() || userEmail.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Founder';
+
       useAuthStore.setState({
-        session: { user: { id: newUserId, email: 'manav.nagpal2005@gmail.com' } } as any,
-        user: { id: newUserId, email: 'manav.nagpal2005@gmail.com' } as any,
+        session: { user: { id: newUserId, email: userEmail } } as any,
+        user: { id: newUserId, email: userEmail } as any,
         profile: {
           id: newUserId,
-          email: 'manav.nagpal2005@gmail.com',
-          full_name: fullName.trim() || 'Manav Nagpal',
+          email: userEmail,
+          full_name: userFullName,
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
         },
         businesses: [],
@@ -290,6 +293,7 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 24,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   brandSubtitle: {
@@ -297,6 +301,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
     fontWeight: '500',
+    fontFamily: 'Manrope_500Medium',
   },
   card: {
     borderRadius: 16,
@@ -321,6 +326,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     marginHorizontal: 8,
     fontWeight: '500',
+    fontFamily: 'Manrope_500Medium',
   },
   errorContainer: {
     backgroundColor: '#FEF2F2',
@@ -335,6 +341,7 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
   },
   inputGroup: {
     marginBottom: 12,
@@ -342,6 +349,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: Colors.textSecondary,
     marginBottom: 4,
   },
@@ -361,6 +369,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
     fontWeight: '500',
+    fontFamily: 'Manrope_500Medium',
   },
   eyeBtn: {
     padding: 4,
@@ -375,10 +384,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     fontWeight: '500',
+    fontFamily: 'Manrope_500Medium',
   },
   footerLink: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.primary,
   },
 });

@@ -247,6 +247,7 @@ const styles = StyleSheet.create({
   restoreText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.primary,
   },
   loaderCenter: {
@@ -276,12 +277,14 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 24,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
     letterSpacing: -0.5,
   },
   heroSub: {
     fontSize: 13,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     textAlign: 'center',
     lineHeight: 18,
     marginTop: 6,
@@ -320,6 +323,7 @@ const styles = StyleSheet.create({
   popularBadgeText: {
     fontSize: 9,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
@@ -335,6 +339,7 @@ const styles = StyleSheet.create({
   currentBadgeText: {
     fontSize: 9,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
@@ -346,11 +351,13 @@ const styles = StyleSheet.create({
   planName: {
     fontSize: 18,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   planDesc: {
     fontSize: 12,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     marginTop: 2,
     maxWidth: 180,
   },
@@ -361,11 +368,13 @@ const styles = StyleSheet.create({
   planPrice: {
     fontSize: 22,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   planPeriod: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: Colors.textMuted,
   },
   divider: {
@@ -392,6 +401,7 @@ const styles = StyleSheet.create({
   featureText: {
     fontSize: 13,
     color: Colors.text,
+    fontFamily: 'Manrope_500Medium',
   },
   guaranteeRow: {
     flexDirection: 'row',
@@ -407,6 +417,7 @@ const styles = StyleSheet.create({
   guaranteeText: {
     fontSize: 12,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     flex: 1,
     lineHeight: 16,
   },
@@ -423,11 +434,13 @@ const styles = StyleSheet.create({
   subscribeBtnText: {
     color: '#FFFFFF',
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     fontSize: 16,
   },
   termsText: {
     fontSize: 11,
     color: Colors.textMuted,
+    fontFamily: 'Manrope_400Regular',
     textAlign: 'center',
     lineHeight: 15,
     marginTop: 14,

@@ -383,12 +383,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
     letterSpacing: -0.5,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 130,
+    paddingBottom: 140,
   },
   profileCard: {
     marginBottom: 16,
@@ -411,6 +412,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 22,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.primary,
   },
   profileInfo: {
@@ -419,11 +421,13 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 17,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   userEmail: {
     fontSize: 13,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     marginBottom: 2,
   },
   editIconBtn: {
@@ -437,6 +441,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.textMuted,
     letterSpacing: 0.8,
     marginBottom: 8,
@@ -452,6 +457,7 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.primary,
   },
   workspaceCard: {
@@ -481,11 +487,13 @@ const styles = StyleSheet.create({
   wsName: {
     fontSize: 16,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   wsRole: {
     fontSize: 12,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     marginTop: 2,
   },
   switchBtn: {
@@ -497,6 +505,7 @@ const styles = StyleSheet.create({
   switchText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.primary,
   },
   wsDivider: {
@@ -518,6 +527,7 @@ const styles = StyleSheet.create({
   wsSubActionText: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: Colors.textSecondary,
   },
   subscriptionCard: {
@@ -540,23 +550,27 @@ const styles = StyleSheet.create({
   subBadgeText: {
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: '#D97706',
     letterSpacing: 0.8,
   },
   subStatus: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.success,
   },
   subTitle: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
     marginBottom: 4,
   },
   subDesc: {
     fontSize: 13,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     lineHeight: 18,
   },
   usageCard: {
@@ -576,11 +590,13 @@ const styles = StyleSheet.create({
   usageTitle: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
   },
   usageCount: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: Colors.primary,
   },
   progressBar: {
@@ -598,6 +614,7 @@ const styles = StyleSheet.create({
   usageSub: {
     fontSize: 11,
     color: Colors.textMuted,
+    fontFamily: 'Manrope_400Regular',
   },
   settingsGroup: {
     paddingVertical: 4,
@@ -626,11 +643,13 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
   },
   settingSub: {
     fontSize: 11,
     color: Colors.textMuted,
+    fontFamily: 'Manrope_400Regular',
     marginTop: 1,
   },
   connectedPill: {
@@ -642,6 +661,7 @@ const styles = StyleSheet.create({
   connectedText: {
     fontSize: 11,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.success,
   },
   divider: {

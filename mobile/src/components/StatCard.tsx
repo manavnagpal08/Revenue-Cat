@@ -96,9 +96,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     minWidth: 140,
-    margin: 3,
+    margin: 4,
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
@@ -116,6 +116,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    fontFamily: 'Manrope_700Bold',
   },
   iconContainer: {
     padding: 6,
@@ -126,17 +127,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   valueText: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '800',
     color: '#0F172A',
     letterSpacing: -0.5,
+    fontFamily: 'Manrope_800ExtraBold',
   },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 2,
-    gap: 4,
+    gap: 6,
   },
   badge: {
     paddingHorizontal: 6,
@@ -147,11 +149,13 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
+    fontFamily: 'Manrope_700Bold',
   },
   subtitleText: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#94A3B8',
     fontWeight: '500',
-    flex: 1,
+    fontFamily: 'Manrope_500Medium',
+    flexShrink: 1,
   },
 });

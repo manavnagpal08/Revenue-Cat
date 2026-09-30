@@ -263,6 +263,7 @@ const styles = StyleSheet.create({
   customersBtnText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.primary,
   },
   addButton: {
@@ -276,7 +277,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 130,
+    paddingBottom: 140,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -293,6 +294,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 13,
+    fontFamily: 'Manrope_500Medium',
     color: Colors.text,
   },
   stageTabsScroll: {
@@ -315,6 +317,7 @@ const styles = StyleSheet.create({
   stageTabText: {
     fontSize: 11,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.textSecondary,
   },
   stageTabTextActive: {
@@ -338,11 +341,13 @@ const styles = StyleSheet.create({
   aiBadgeText: {
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.primary,
   },
   aiSalesTitle: {
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
     lineHeight: 20,
     marginBottom: 4,
@@ -350,6 +355,7 @@ const styles = StyleSheet.create({
   aiSalesSub: {
     fontSize: 13,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     lineHeight: 18,
   },
   listHeaderRow: {
@@ -359,6 +365,7 @@ const styles = StyleSheet.create({
   listHeaderTitle: {
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
   },
   loadingBox: {
@@ -381,6 +388,7 @@ const styles = StyleSheet.create({
   leadName: {
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
     marginBottom: 4,
   },
@@ -394,11 +402,13 @@ const styles = StyleSheet.create({
   stageText: {
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.primary,
   },
   dealValue: {
     fontSize: 16,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   leadBottomRow: {
@@ -415,10 +425,12 @@ const styles = StyleSheet.create({
   priorityText: {
     fontSize: 10,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
   },
   companySub: {
     fontSize: 12,
     color: Colors.textMuted,
+    fontFamily: 'Manrope_500Medium',
   },
   actionRow: {
     flexDirection: 'row',
@@ -430,11 +442,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 15,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
     marginBottom: 4,
   },
   emptySub: {
     fontSize: 13,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
   },
 });

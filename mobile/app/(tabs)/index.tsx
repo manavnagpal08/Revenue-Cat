@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scrollContent: {
-    paddingBottom: 130,
+    paddingBottom: 140,
   },
   sectionContainer: {
     paddingHorizontal: 20,
@@ -423,6 +423,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
     letterSpacing: -0.3,
     marginBottom: 8,
@@ -430,6 +431,7 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: Colors.primary,
   },
   briefCard: {
@@ -457,6 +459,7 @@ const styles = StyleSheet.create({
   briefBadgeText: {
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.primaryDark,
     letterSpacing: 0.8,
   },
@@ -479,10 +482,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textSecondary,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
   },
   briefTitle: {
     fontSize: 16,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
     lineHeight: 23,
     marginBottom: 6,
@@ -492,6 +497,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 19,
     marginBottom: 16,
+    fontFamily: 'Manrope_400Regular',
   },
   briefActions: {
     flexDirection: 'row',
@@ -524,12 +530,14 @@ const styles = StyleSheet.create({
   askAiTitle: {
     fontSize: 11,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.primaryDark,
     letterSpacing: 0.8,
   },
   askAiSubtitle: {
     fontSize: 19,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
     marginBottom: 14,
     letterSpacing: -0.4,
@@ -564,6 +572,7 @@ const styles = StyleSheet.create({
   promptChipText: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: Colors.text,
     letterSpacing: -0.1,
   },
@@ -590,11 +599,13 @@ const styles = StyleSheet.create({
   agentName: {
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
   },
   agentStatus: {
     fontSize: 12,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
     marginTop: 2,
   },
   divider: {
@@ -627,11 +638,13 @@ const styles = StyleSheet.create({
   autoWidgetTitle: {
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: '#0F172A',
   },
   autoWidgetSubtitle: {
     fontSize: 12,
     color: '#64748B',
+    fontFamily: 'Manrope_400Regular',
     marginTop: 2,
   },
   autoWidgetRight: {
@@ -648,6 +661,7 @@ const styles = StyleSheet.create({
   runningPillText: {
     fontSize: 11,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: '#D97706',
   },
   activityCard: {
@@ -673,11 +687,13 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: '#0F172A',
   },
   activitySub: {
     fontSize: 12,
     color: '#64748B',
+    fontFamily: 'Manrope_400Regular',
     marginTop: 2,
   },
 });

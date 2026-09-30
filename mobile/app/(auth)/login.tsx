@@ -38,41 +38,49 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await authService.signIn({
+      const authData = await authService.signIn({
         email: email.trim(),
         password,
       });
 
-      const userEmail = email.trim();
-      const userName = userEmail.split('@')[0] || 'Alex Rivera';
+      const userEmail = email.trim().toLowerCase();
+      const rawName = userEmail.split('@')[0].replace(/[._-]+/g, ' ');
+      const userName = rawName
+        .split(' ')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ') || 'Founder';
+      const userId = authData?.user?.id || 'usr-' + Date.now();
+
+      const bizName = `${userName}'s Workspace`;
+      const bizId = 'biz-' + Date.now();
 
       useAuthStore.setState({
-        session: { user: { id: '00000000-0000-0000-0000-000000000001', email: userEmail } } as any,
-        user: { id: '00000000-0000-0000-0000-000000000001', email: userEmail } as any,
+        session: { user: { id: userId, email: userEmail } } as any,
+        user: { id: userId, email: userEmail } as any,
         profile: {
-          id: '00000000-0000-0000-0000-000000000001',
+          id: userId,
           email: userEmail,
-          full_name: userName.charAt(0).toUpperCase() + userName.slice(1),
+          full_name: userName,
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
         },
         businesses: [
           {
-            id: '00000000-0000-0000-0000-000000000002',
-            name: 'Rivera Studio',
-            slug: 'rivera-studio',
-            owner_id: '00000000-0000-0000-0000-000000000001',
-            industry: 'Design & Tech Agency',
+            id: bizId,
+            name: bizName,
+            slug: bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            owner_id: userId,
+            industry: 'Consulting & Services',
             currency: 'INR',
             currency_symbol: '₹',
             created_at: new Date().toISOString(),
           },
         ],
         currentBusiness: {
-          id: '00000000-0000-0000-0000-000000000002',
-          name: 'Rivera Studio',
-          slug: 'rivera-studio',
-          owner_id: '00000000-0000-0000-0000-000000000001',
-          industry: 'Design & Tech Agency',
+          id: bizId,
+          name: bizName,
+          slug: bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          owner_id: userId,
+          industry: 'Consulting & Services',
           currency: 'INR',
           currency_symbol: '₹',
           created_at: new Date().toISOString(),
@@ -94,22 +102,31 @@ export default function LoginScreen() {
     try {
       await authService.signInWithGoogle();
       
-      // Instant Google Session
+      const userEmail = email.trim().toLowerCase() || 'founder@soloceo.app';
+      const rawName = userEmail.split('@')[0].replace(/[._-]+/g, ' ');
+      const userName = rawName
+        .split(' ')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ') || 'Google Founder';
+      const userId = 'google-' + Date.now();
+      const bizName = `${userName}'s Studio`;
+      const bizId = 'biz-' + Date.now();
+
       useAuthStore.setState({
-        session: { user: { id: '00000000-0000-0000-0000-000000000001', email: 'manav.nagpal2005@gmail.com' } } as any,
-        user: { id: '00000000-0000-0000-0000-000000000001', email: 'manav.nagpal2005@gmail.com' } as any,
+        session: { user: { id: userId, email: userEmail } } as any,
+        user: { id: userId, email: userEmail } as any,
         profile: {
-          id: '00000000-0000-0000-0000-000000000001',
-          email: 'manav.nagpal2005@gmail.com',
-          full_name: 'Manav Nagpal',
+          id: userId,
+          email: userEmail,
+          full_name: userName,
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
         },
         businesses: [
           {
-            id: '00000000-0000-0000-0000-000000000002',
-            name: 'Rivera Studio',
-            slug: 'rivera-studio',
-            owner_id: '00000000-0000-0000-0000-000000000001',
+            id: bizId,
+            name: bizName,
+            slug: bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            owner_id: userId,
             industry: 'Design & Tech Agency',
             currency: 'INR',
             currency_symbol: '₹',
@@ -117,10 +134,10 @@ export default function LoginScreen() {
           },
         ],
         currentBusiness: {
-          id: '00000000-0000-0000-0000-000000000002',
-          name: 'Rivera Studio',
-          slug: 'rivera-studio',
-          owner_id: '00000000-0000-0000-0000-000000000001',
+          id: bizId,
+          name: bizName,
+          slug: bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          owner_id: userId,
           industry: 'Design & Tech Agency',
           currency: 'INR',
           currency_symbol: '₹',
@@ -138,24 +155,27 @@ export default function LoginScreen() {
   };
 
   const handleQuickDemo = async () => {
-    setEmail('alex.founder@soloceo.app');
+    setEmail('founder.demo@soloceo.app');
     setPassword('Password123!');
     setLoading(true);
+    const userId = 'usr-demo-' + Date.now();
+    const bizId = 'biz-demo-' + Date.now();
+
     useAuthStore.setState({
-      session: { user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } } as any,
-      user: { id: '00000000-0000-0000-0000-000000000001', email: 'alex.founder@soloceo.app' } as any,
+      session: { user: { id: userId, email: 'founder.demo@soloceo.app' } } as any,
+      user: { id: userId, email: 'founder.demo@soloceo.app' } as any,
       profile: {
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'alex.founder@soloceo.app',
+        id: userId,
+        email: 'founder.demo@soloceo.app',
         full_name: 'Alex Rivera',
         avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
       },
       businesses: [
         {
-          id: '00000000-0000-0000-0000-000000000002',
+          id: bizId,
           name: 'Rivera Studio',
           slug: 'rivera-studio',
-          owner_id: '00000000-0000-0000-0000-000000000001',
+          owner_id: userId,
           industry: 'Design & Tech Agency',
           currency: 'INR',
           currency_symbol: '₹',
@@ -163,10 +183,10 @@ export default function LoginScreen() {
         },
       ],
       currentBusiness: {
-        id: '00000000-0000-0000-0000-000000000002',
+        id: bizId,
         name: 'Rivera Studio',
         slug: 'rivera-studio',
-        owner_id: '00000000-0000-0000-0000-000000000001',
+        owner_id: userId,
         industry: 'Design & Tech Agency',
         currency: 'INR',
         currency_symbol: '₹',
@@ -338,6 +358,7 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 24,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   brandSubtitle: {
@@ -345,6 +366,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
     fontWeight: '500',
+    fontFamily: 'Manrope_500Medium',
   },
   card: {
     borderRadius: 16,
@@ -357,6 +379,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
     marginBottom: 14,
   },
@@ -375,6 +398,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     marginHorizontal: 8,
     fontWeight: '500',
+    fontFamily: 'Manrope_500Medium',
   },
   errorContainer: {
     backgroundColor: '#FEF2F2',
@@ -389,6 +413,7 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
   },
   inputGroup: {
     marginBottom: 12,
@@ -396,6 +421,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'Manrope_600SemiBold',
     color: Colors.textSecondary,
     marginBottom: 4,
   },
@@ -415,6 +441,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text,
     fontWeight: '500',
+    fontFamily: 'Manrope_500Medium',
   },
   eyeBtn: {
     padding: 4,
@@ -429,10 +456,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     fontWeight: '500',
+    fontFamily: 'Manrope_500Medium',
   },
   footerLink: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.primary,
   },
 });

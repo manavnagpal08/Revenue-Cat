@@ -258,6 +258,7 @@ const styles = StyleSheet.create({
   proposalsBtnText: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.primary,
   },
   addButton: {
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 130,
+    paddingBottom: 140,
   },
   kpiRow: {
     flexDirection: 'row',
@@ -297,6 +298,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 11,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.textSecondary,
   },
   tabTextActive: {
@@ -319,16 +321,19 @@ const styles = StyleSheet.create({
   invClient: {
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'Manrope_700Bold',
     color: Colors.text,
   },
   invNumber: {
     fontSize: 12,
     color: Colors.textMuted,
+    fontFamily: 'Manrope_500Medium',
     marginTop: 1,
   },
   invAmount: {
     fontSize: 16,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
   },
   invMiddleRow: {
@@ -346,11 +351,13 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 10,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.primary,
   },
   dueDateText: {
     fontSize: 12,
     color: Colors.textMuted,
+    fontFamily: 'Manrope_500Medium',
   },
   actionRow: {
     flexDirection: 'row',
@@ -362,11 +369,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 15,
     fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
     color: Colors.text,
     marginBottom: 4,
   },
   emptySub: {
     fontSize: 13,
     color: Colors.textSecondary,
+    fontFamily: 'Manrope_400Regular',
   },
 });

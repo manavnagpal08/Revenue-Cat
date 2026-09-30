@@ -82,12 +82,12 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
       case 'primary':
       case 'emerald':
       case 'danger':
-        return { color: Colors.textInverted, fontWeight: '700' };
+        return { color: Colors.textInverted, fontWeight: '700', fontFamily: 'Manrope_700Bold' };
       case 'secondary':
       case 'glass':
-        return { color: Colors.text, fontWeight: '600' };
+        return { color: Colors.text, fontWeight: '600', fontFamily: 'Manrope_600SemiBold' };
       case 'ghost':
-        return { color: Colors.primary, fontWeight: '700' };
+        return { color: Colors.primary, fontWeight: '700', fontFamily: 'Manrope_700Bold' };
     }
   };
 
@@ -96,17 +96,17 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
       case 'sm':
         return {
           container: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 14 },
-          text: { fontSize: 13 },
+          text: { fontSize: 13, fontFamily: 'Manrope_600SemiBold' },
         };
       case 'lg':
         return {
           container: { paddingVertical: 16, paddingHorizontal: 26, borderRadius: 20 },
-          text: { fontSize: 16 },
+          text: { fontSize: 16, fontFamily: 'Manrope_700Bold' },
         };
       default:
         return {
           container: { paddingVertical: 13, paddingHorizontal: 22, borderRadius: 16 },
-          text: { fontSize: 14 },
+          text: { fontSize: 14, fontFamily: 'Manrope_600SemiBold' },
         };
     }
   };
@@ -171,6 +171,7 @@ const styles = StyleSheet.create({
   },
   baseText: {
     letterSpacing: -0.2,
+    fontFamily: 'Manrope_600SemiBold',
   },
   disabledButton: {
     opacity: 0.45,
