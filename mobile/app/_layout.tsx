@@ -22,7 +22,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Manrope_400Regular,
     Manrope_500Medium,
     Manrope_600SemiBold,
@@ -30,12 +30,18 @@ export default function RootLayout() {
     Manrope_800ExtraBold,
   });
 
+  const [timedOut, setTimedOut] = React.useState(false);
+
   useEffect(() => {
     initialize();
+    const timer = setTimeout(() => {
+      setTimedOut(true);
+    }, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (!isInitialized) return;
+    if (!isInitialized && !timedOut) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
@@ -56,9 +62,11 @@ export default function RootLayout() {
         router.replace('/(tabs)');
       }
     }
-  }, [isInitialized, session, currentBusiness, businesses, segments]);
+  }, [isInitialized, session, currentBusiness, businesses, segments, timedOut]);
 
-  if (!isInitialized || !fontsLoaded) {
+  const isReady = (isInitialized && (fontsLoaded || !!fontError)) || timedOut;
+
+  if (!isReady) {
     return (
       <SafeAreaProvider>
         <StatusBar style="dark" />

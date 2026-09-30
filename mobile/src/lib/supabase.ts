@@ -9,7 +9,8 @@ const ExpoSecureStoreAdapter = {
         return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
       }
       return await SecureStore.getItemAsync(key);
-    } catch {
+    } catch (e) {
+      console.warn('SecureStore getItem notice:', e);
       return null;
     }
   },
@@ -19,8 +20,12 @@ const ExpoSecureStoreAdapter = {
         if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
         return;
       }
-      await SecureStore.setItemAsync(key, value);
-    } catch {}
+      if (value && value.length < 2040) {
+        await SecureStore.setItemAsync(key, value);
+      }
+    } catch (e) {
+      console.warn('SecureStore setItem notice:', e);
+    }
   },
   removeItem: async (key: string) => {
     try {
@@ -29,7 +34,9 @@ const ExpoSecureStoreAdapter = {
         return;
       }
       await SecureStore.deleteItemAsync(key);
-    } catch {}
+    } catch (e) {
+      console.warn('SecureStore removeItem notice:', e);
+    }
   },
 };
 

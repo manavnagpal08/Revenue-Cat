@@ -43,13 +43,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // 1. Get current session — wrapped so network failures don't block startup
+      // 1. Get current session — protected with 2000ms timeout
       let session = null;
       try {
-        const { data } = await supabase.auth.getSession();
-        session = data?.session || null;
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Session timeout')), 2000)
+        );
+        const res: any = await Promise.race([supabase.auth.getSession(), timeoutPromise]);
+        session = res?.data?.session || null;
       } catch (netErr: any) {
-        console.warn('Network error getting session (offline mode):', netErr);
+        console.warn('Network or timeout getting session:', netErr);
       }
       
       if (!session?.user) {
@@ -67,10 +70,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ session, user: session.user });
 
-      // 2. Fetch Profile from Supabase
+      // 2. Fetch Profile from Supabase with timeout
       let profile = null;
       try {
-        profile = await profileService.getCurrentProfile(session.user.id);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Profile timeout')), 2000)
+        );
+        profile = await Promise.race([
+          profileService.getCurrentProfile(session.user.id),
+          timeoutPromise as any,
+        ]);
       } catch {}
 
       if (profile) {
@@ -85,8 +94,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ profile: newProfile });
       }
 
-      // 3. Fetch User Businesses — already returns [] on error
-      const businesses = await workspaceService.getUserBusinesses(session.user.id);
+      // 3. Fetch User Businesses with timeout
+      let businesses: Business[] = [];
+      try {
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Businesses timeout')), 2000)
+        );
+        businesses = await Promise.race([
+          workspaceService.getUserBusinesses(session.user.id),
+          timeoutPromise as any,
+        ]);
+      } catch {}
       
       let activeBiz: Business | null = null;
       if (businesses.length > 0) {

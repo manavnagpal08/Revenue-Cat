@@ -110,7 +110,7 @@ export const AnimatedSplashScreen: React.FC<AnimatedSplashScreenProps> = ({
             styles.logoWrapper,
             {
               opacity: logoOpacity,
-              transform: [{ scale: Animated.multiply(logoScale, pulseAnim) }],
+              transform: [{ scale: logoScale }],
             },
           ]}
         >
