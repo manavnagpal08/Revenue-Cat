@@ -130,7 +130,7 @@ export default function AICommandCenterScreen() {
 
   const handleActionCardPress = (card: AIAgentActionCard) => {
     const payload = card.action_payload || {};
-    const action = payload.action;
+    const action = payload.action || payload.action_type;
 
     if (action === 'VIEW_LEAD' && payload.lead_id) {
       router.push(`/leads/${payload.lead_id}` as any);
@@ -144,13 +144,14 @@ export default function AICommandCenterScreen() {
       router.push('/(tabs)/sales');
     } else if (action === 'VIEW_INVOICES') {
       router.push('/(tabs)/finance');
-    } else if (action === 'CREATE_PROPOSAL') {
+    } else if (action === 'VIEW_INTEGRATIONS') {
+      router.push('/integrations' as any);
+    } else if (action === 'VIEW_AUTOMATIONS') {
+      router.push('/automations' as any);
+    } else if (action === 'CREATE_PROPOSAL' || action === 'CREATE_LEAD' || action === 'CREATE_INVOICE' || action === 'CREATE_CUSTOMER' || action === 'RUN_AUTOMATION' || action === 'SCHEDULE_MEETING') {
       setPendingAction({
-        action_type: 'CREATE_PROPOSAL',
-        payload: {
-          title: card.title.replace('Create Proposal: ', ''),
-          total_value: 75000,
-        },
+        action_type: action,
+        payload: payload,
       });
       setConfirmModalVisible(true);
     }
@@ -167,13 +168,20 @@ export default function AICommandCenterScreen() {
       );
 
       setConfirmModalVisible(false);
-      Alert.alert('Action Executed', 'Action successfully confirmed and written to your database.');
+      const isDedup = result?.deduplicated;
+      Alert.alert(
+        isDedup ? 'Record Updated 🔄' : 'Action Executed 🚀',
+        isDedup
+          ? 'Existing matching record was found and updated without creating duplicates.'
+          : 'Action successfully written and synchronized with your workspace database.'
+      );
 
+      const actionName = pendingAction.action_type.replace(/_/g, ' ');
       const successMsg: AIMessage = {
         id: 'success-' + Date.now(),
         sender: 'assistant',
         agent: 'supervisor',
-        content: `Action **${pendingAction.action_type}** executed successfully! Record updated in database.`,
+        content: `Action **${actionName}** completed successfully! All audit logs and CRM data are updated.`,
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, successMsg]);
@@ -191,7 +199,7 @@ export default function AICommandCenterScreen() {
         id: 'welcome-msg',
         sender: 'assistant',
         agent: 'supervisor',
-        content: `Chat cleared. Ready for your next query on **${currentBusiness?.name || 'your workspace'}**.`,
+        content: `Chat cleared. Ready for your next command on **${currentBusiness?.name || 'your workspace'}**.`,
         created_at: new Date().toISOString(),
       },
     ]);
