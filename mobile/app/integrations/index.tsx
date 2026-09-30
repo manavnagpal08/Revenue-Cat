@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   Mail,
@@ -66,7 +66,7 @@ export default function IntegrationsHubScreen() {
       iconColor: '#2563EB',
       iconBg: '#DBEAFE',
       status: 'Connected',
-      subtext: '3 calendars synced',
+      subtext: 'Primary Calendar Synced',
       isManage: true,
     },
     {
@@ -97,19 +97,25 @@ export default function IntegrationsHubScreen() {
     { id: 'notion', name: 'Notion', color: '#0F172A', iconBg: '#F1F5F9' },
   ];
 
-  const loadIntegrations = async () => {
+  const loadIntegrations = useCallback(async () => {
     if (!currentBusiness?.id) return;
     try {
       const items = await integrationService.listIntegrations(currentBusiness.id);
       if (items && items.length > 0) {
         setTools((prev) =>
           prev.map((tool) => {
-            const match = items.find((i) => i.provider === tool.id || (tool.id === 'website' && i.provider === 'website_leads'));
+            const match = items.find(
+              (i) =>
+                i.provider === tool.id ||
+                (tool.id === 'website' && i.provider === 'website_leads') ||
+                (tool.id === 'calendar' && i.provider === 'google_calendar')
+            );
             if (match) {
+              const isConn = match.status === 'connected';
               return {
                 ...tool,
-                status: match.status === 'connected' ? 'Connected' : 'Not Connected',
-                subtext: match.account_email || (match.status === 'connected' ? userEmail : 'Connect to start'),
+                status: isConn ? 'Connected' : 'Not Connected',
+                subtext: match.account_email || (isConn ? userEmail : 'Connect to start'),
               };
             }
             return tool;
@@ -121,11 +127,17 @@ export default function IntegrationsHubScreen() {
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [currentBusiness?.id, userEmail]);
 
   useEffect(() => {
     loadIntegrations();
-  }, [currentBusiness?.id]);
+  }, [loadIntegrations]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadIntegrations();
+    }, [loadIntegrations])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

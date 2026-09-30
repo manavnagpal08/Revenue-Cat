@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ScrollView,
   View,
@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Plus, Sparkles, Filter, PhoneCall, ArrowUpRight, Search, Users } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
@@ -31,7 +31,7 @@ export default function SalesScreen() {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [search, setSearch] = useState('');
 
-  const loadLeads = async () => {
+  const loadLeads = useCallback(async () => {
     if (!currentBusiness?.id) return;
     try {
       const list = await leadService.listLeads(
@@ -47,11 +47,17 @@ export default function SalesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [currentBusiness?.id, stageFilter, priorityFilter, search]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadLeads();
+    }, [loadLeads])
+  );
 
   useEffect(() => {
     loadLeads();
-  }, [currentBusiness?.id, stageFilter, priorityFilter, search]);
+  }, [loadLeads]);
 
   const onRefresh = () => {
     setRefreshing(true);

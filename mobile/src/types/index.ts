@@ -37,6 +37,7 @@ export interface Customer {
   total_revenue: number;
   last_interaction_at?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost';
@@ -47,7 +48,10 @@ export interface Lead {
   customer_id?: string;
   customer?: Customer;
   title: string;
+  company?: string;
   contact_name?: string;
+  email?: string;
+  phone?: string;
   value: number;
   source: string;
   status: LeadStatus;
@@ -56,7 +60,9 @@ export interface Lead {
   notes?: string;
   last_contacted_at?: string;
   next_followup_at?: string;
+  expected_close_date?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled';

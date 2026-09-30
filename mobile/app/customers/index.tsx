@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Plus, Search, User, Phone, Mail, Building, ChevronRight, DollarSign } from 'lucide-react-native';
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
@@ -28,7 +28,7 @@ export default function CustomersScreen() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     if (!currentBusiness?.id) return;
     try {
       const list = await customerService.listCustomers(currentBusiness.id, search, statusFilter);
@@ -39,11 +39,17 @@ export default function CustomersScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [currentBusiness?.id, statusFilter, search]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadCustomers();
+    }, [loadCustomers])
+  );
 
   useEffect(() => {
     loadCustomers();
-  }, [currentBusiness?.id, statusFilter, search]);
+  }, [loadCustomers]);
 
   const onRefresh = () => {
     setRefreshing(true);
