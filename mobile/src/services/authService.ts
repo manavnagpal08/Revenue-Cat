@@ -1,5 +1,10 @@
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types';
+
+// Complete any pending auth sessions on app launch / deep link
+WebBrowser.maybeCompleteAuthSession();
 
 export interface SignUpParams {
   fullName: string;
@@ -77,101 +82,102 @@ export const authService = {
    * Sign in / Sign up with Google using native WebBrowser OAuth session.
    */
   async signInWithGoogle() {
-    const WebBrowser = require('expo-web-browser');
-    const AuthSession = require('expo-auth-session');
-    WebBrowser.maybeCompleteAuthSession();
+    try {
+      const redirectUrl = AuthSession.makeRedirectUri({
+        scheme: 'soloceo',
+        path: 'auth/callback',
+      });
 
-    const redirectUrl = AuthSession.makeRedirectUri({
-      scheme: 'soloceo',
-      path: 'auth/callback',
-    });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
+      });
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-        skipBrowserRedirect: true,
-      },
-    });
-
-    if (error) {
-      if (
-        error.message.toLowerCase().includes('unsupported provider') ||
-        error.message.toLowerCase().includes('not enabled')
-      ) {
-        throw new Error(
-          'Google OAuth is not enabled in your Supabase project dashboard. Please sign in or register with Email & Password.'
-        );
+      if (error) {
+        if (
+          error.message.toLowerCase().includes('unsupported provider') ||
+          error.message.toLowerCase().includes('not enabled')
+        ) {
+          throw new Error(
+            'Google OAuth is not enabled in Supabase dashboard. Please use Email/Password or 1-Tap Demo.'
+          );
+        }
+        throw new Error(error.message || 'Google Sign-In could not be started.');
       }
-      throw new Error(error.message || 'Google Sign-In failed.');
-    }
 
-    if (!data?.url) {
-      throw new Error('Could not initiate Google authentication session.');
-    }
+      if (!data?.url) {
+        throw new Error('Could not initiate Google authentication session.');
+      }
 
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
-    if (result.type === 'cancel' || result.type === 'dismiss') {
-      throw new Error('Google Sign-In was cancelled.');
-    }
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        throw new Error('Google Sign-In was closed or cancelled.');
+      }
 
-    if (result.type === 'success' && result.url) {
-      const urlStr = result.url;
-      const hashIndex = urlStr.indexOf('#');
-      const queryIndex = urlStr.indexOf('?');
+      if (result.type === 'success' && result.url) {
+        const urlStr = result.url;
+        const hashIndex = urlStr.indexOf('#');
+        const queryIndex = urlStr.indexOf('?');
 
-      const paramStr =
-        hashIndex !== -1
-          ? urlStr.substring(hashIndex + 1)
-          : queryIndex !== -1
-          ? urlStr.substring(queryIndex + 1)
-          : '';
+        const paramStr =
+          hashIndex !== -1
+            ? urlStr.substring(hashIndex + 1)
+            : queryIndex !== -1
+            ? urlStr.substring(queryIndex + 1)
+            : '';
 
-      const params = new URLSearchParams(paramStr);
-      const code = params.get('code');
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
+        const params = new URLSearchParams(paramStr);
+        const code = params.get('code');
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
 
-      // 1. Handle PKCE Code Exchange
-      if (code) {
-        const exchangeRes = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeRes.data?.user) {
-          const u = exchangeRes.data.user;
-          try {
-            await supabase.from('profiles').upsert({
-              id: u.id,
-              email: u.email,
-              full_name: u.user_metadata?.full_name || u.email?.split('@')[0] || 'Founder',
-              avatar_url: u.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-            });
-          } catch {}
-          return exchangeRes.data;
+        // 1. Handle PKCE Code Exchange
+        if (code) {
+          const exchangeRes = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeRes.data?.user) {
+            const u = exchangeRes.data.user;
+            try {
+              await supabase.from('profiles').upsert({
+                id: u.id,
+                email: u.email,
+                full_name: u.user_metadata?.full_name || u.email?.split('@')[0] || 'Founder',
+                avatar_url: u.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+              });
+            } catch {}
+            return exchangeRes.data;
+          }
+        }
+
+        // 2. Handle Implicit Hash Tokens
+        if (accessToken && refreshToken) {
+          const setRes = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (setRes.data?.user) {
+            const u = setRes.data.user;
+            try {
+              await supabase.from('profiles').upsert({
+                id: u.id,
+                email: u.email,
+                full_name: u.user_metadata?.full_name || u.email?.split('@')[0] || 'Founder',
+                avatar_url: u.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+              });
+            } catch {}
+            return setRes.data;
+          }
         }
       }
 
-      // 2. Handle Implicit Hash Tokens
-      if (accessToken && refreshToken) {
-        const setRes = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (setRes.data?.user) {
-          const u = setRes.data.user;
-          try {
-            await supabase.from('profiles').upsert({
-              id: u.id,
-              email: u.email,
-              full_name: u.user_metadata?.full_name || u.email?.split('@')[0] || 'Founder',
-              avatar_url: u.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-            });
-          } catch {}
-          return setRes.data;
-        }
-      }
+      throw new Error('Redirect returned without valid session tokens. (Ensure soloceo://auth/callback is in Supabase Redirect URLs)');
+    } catch (err: any) {
+      console.warn('Google sign-in exception caught:', err.message);
+      throw err;
     }
-
-    throw new Error('Could not authenticate Google session tokens. Please ensure Google OAuth redirect URLs include soloceo:// in Supabase.');
   },
 
   /**

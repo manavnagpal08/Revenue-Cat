@@ -20,7 +20,7 @@ const ExpoSecureStoreAdapter = {
         if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
         return;
       }
-      if (value && value.length < 2040) {
+      if (value) {
         await SecureStore.setItemAsync(key, value);
       }
     } catch (e) {
