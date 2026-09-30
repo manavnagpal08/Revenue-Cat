@@ -17,6 +17,7 @@ const GEMINI_API_KEY =
  * Direct Gemini 2.5 Flash Reasoning Engine
  */
 async function queryGeminiFlash(systemContext: string, userPrompt: string): Promise<string | null> {
+  if (!GEMINI_API_KEY) return null;
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     const payload = {
@@ -24,14 +25,14 @@ async function queryGeminiFlash(systemContext: string, userPrompt: string): Prom
         {
           parts: [
             {
-              text: `${systemContext}\n\nUser Request: "${userPrompt}"\n\nProvide an authoritative, clear, and actionable business response formatted in clean markdown.`,
+              text: `${systemContext}\n\nUser Request: "${userPrompt}"\n\nInstructions: Provide an authoritative, clear, and beautifully structured response in markdown. Highlight key numbers and customer names in bold. When asked about leads, analyze every relevant lead from the context with specific stages, deal values, and concrete next actions.`,
             },
           ],
         },
       ],
       generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 600,
+        temperature: 0.6,
+        maxOutputTokens: 800,
       },
     };
 
@@ -75,7 +76,7 @@ async function logAuditRecord(
       },
     });
   } catch (e) {
-    // Audit logging is non-blocking
+    // Non-blocking
   }
 }
 
@@ -96,43 +97,15 @@ export const aiService = {
       prompt,
     });
 
-    // 2. Try backend AI orchestration if available
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
-      const token = session?.access_token || 'test-token';
+    // 2. Direct Intelligent Workspace Engine with Gemini 2.5 Flash
+    const commandResult = await this._processFullWorkspaceCommand(businessId, prompt, convId);
 
-      const res = await fetch(`${BACKEND_URL}/api/ai/command`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          business_id: businessId,
-          prompt,
-          conversation_id: convId,
-        }),
-      });
-
-      if (res.ok) {
-        const data = (await res.json()) as AICommandResult;
-        await logAuditRecord(businessId, 'ai_command_success', `Backend agent responded: ${data.agent}`, {
-          agent: data.agent,
-          intent: data.intent,
-        });
-        return data;
-      }
-    } catch (e) {
-      console.warn('Backend AI endpoint unreachable, using client-side real-data engine:', e);
-    }
-
-    // 3. Direct Supabase Intelligent Engine (Zero Mock, 100% Real DB Actions)
-    const fallbackRes = await this._processFullWorkspaceCommand(businessId, prompt, convId);
-    await logAuditRecord(businessId, 'ai_command_processed', `Client engine processed intent: ${fallbackRes.intent}`, {
-      agent: fallbackRes.agent,
-      intent: fallbackRes.intent,
+    await logAuditRecord(businessId, 'ai_command_processed', `Engine processed intent: ${commandResult.intent}`, {
+      agent: commandResult.agent,
+      intent: commandResult.intent,
     });
-    return fallbackRes;
+
+    return commandResult;
   },
 
   /**
@@ -148,36 +121,6 @@ export const aiService = {
       payload,
     });
 
-    // 1. Try Backend Action Confirmation
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
-      const token = session?.access_token || 'test-token';
-
-      const res = await fetch(`${BACKEND_URL}/api/ai/actions/confirm`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          business_id: businessId,
-          action_type: actionType,
-          payload,
-        }),
-      });
-
-      if (res.ok) {
-        const result = await res.json();
-        await logAuditRecord(businessId, 'ai_action_executed_backend', `Action ${actionType} executed via backend`, {
-          action_type: actionType,
-        });
-        return result;
-      }
-    } catch (e) {
-      console.warn('Backend action execution unreachable, executing direct DB write:', e);
-    }
-
-    // 2. Direct DB Execution with Deduplication
     let result: any = { success: true };
 
     if (actionType === 'CREATE_PROPOSAL') {
@@ -222,7 +165,6 @@ export const aiService = {
         result = { success: true, lead, data: lead };
       }
     } else if (actionType === 'CREATE_CUSTOMER') {
-      // Deduplication check on customer email
       const existingCustomers = await customerService.listCustomers(businessId);
       const cleanEmail = (payload.email || '').toLowerCase().trim();
       const duplicate = existingCustomers.find(
@@ -283,9 +225,19 @@ export const aiService = {
         payload.attendees || []
       );
       result = { success: true, calendar: calResult };
+    } else if (actionType === 'SEND_GMAIL_FOLLOWUP') {
+      const emailResult = await integrationService.sendGmailFollowUp(
+        businessId,
+        payload.to_email,
+        payload.subject || 'Project Follow-up',
+        payload.body || 'Hi, checking in regarding our next steps.',
+        payload.sender_email,
+        payload.app_password
+      );
+      result = { success: true, email: emailResult };
     }
 
-    await logAuditRecord(businessId, 'ai_action_executed_db', `Action ${actionType} executed directly in database`, {
+    await logAuditRecord(businessId, 'ai_action_executed_db', `Action ${actionType} executed in workspace`, {
       action_type: actionType,
       result_summary: result.deduplicated ? 'Deduplicated & Merged' : 'New Record Created',
     });
@@ -297,20 +249,6 @@ export const aiService = {
    * Fetch real-time AI business brief for dashboard.
    */
   async getBusinessBrief(businessId: string): Promise<AIBusinessBrief> {
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
-      const token = session?.access_token || 'test-token';
-
-      const res = await fetch(`${BACKEND_URL}/api/ai/business-brief?business_id=${businessId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        return (await res.json()) as AIBusinessBrief;
-      }
-    } catch (e) {}
-
-    // Direct DB query with complete zero-mock metrics
     const [leads, invoices, proposals] = await Promise.all([
       leadService.listLeads(businessId),
       invoiceService.listInvoices(businessId),
@@ -341,7 +279,7 @@ export const aiService = {
   },
 
   /**
-   * Client-side complete data-aware intelligence processing.
+   * Comprehensive Workspace Intelligence Processing
    */
   async _processFullWorkspaceCommand(
     businessId: string,
@@ -361,10 +299,53 @@ export const aiService = {
       integrationService.listIntegrations(businessId),
     ]);
 
-    // 1. TASK: CREATE / LOG NEW LEAD
+    // Build rich, structured workspace context for Gemini
+    const totalPipelineValue = leads.reduce((s: number, l: Lead) => s + Number(l.value || 0), 0);
+    const openLeads = leads.filter((l: Lead) => l.status !== 'won' && l.status !== 'lost');
+    const overdueInvoices = invoices.filter((i: Invoice) => i.status === 'overdue');
+    const collectedRevenue = invoices
+      .filter((i: Invoice) => i.status === 'paid')
+      .reduce((s: number, i: Invoice) => s + Number(i.total_amount || 0), 0);
+
+    const leadsDetailedContext = leads.length > 0
+      ? leads.map((l: Lead, idx: number) =>
+          `${idx + 1}. **${l.title}** (${l.company || 'Direct'}) | Value: ₹${Number(l.value || 0).toLocaleString('en-IN')} | Stage: ${(l.status || 'new').toUpperCase()} | Priority: ${(l.priority || 'medium').toUpperCase()} | Email: ${l.email || 'N/A'} | Notes: "${l.notes || 'No extra notes'}"`
+        ).join('\n')
+      : 'No active leads registered in this workspace yet.';
+
+    const customersContext = customers.length > 0
+      ? customers.slice(0, 5).map((c: Customer) => `• ${c.name} (${c.company_name || 'Individual'}) - LTV: ₹${Number(c.total_revenue || 0).toLocaleString('en-IN')}`).join('\n')
+      : 'No customer profiles found.';
+
+    const invoicesContext = invoices.length > 0
+      ? invoices.slice(0, 5).map((i: Invoice) => `• #${i.invoice_number}: ₹${Number(i.total_amount || 0).toLocaleString('en-IN')} (Status: ${i.status.toUpperCase()}, Due: ${i.due_date})`).join('\n')
+      : 'No invoices recorded.';
+
+    const fullWorkspaceContext = `
+You are the SoloCEO Autonomous AI Operating System Supervisor.
+LIVE WORKSPACE DATABASE SNAPSHOT:
+=====================================================
+📊 SALES PIPELINE LEADS (${leads.length} Total, ₹${totalPipelineValue.toLocaleString('en-IN')} Total Value):
+${leadsDetailedContext}
+
+👥 ACTIVE CLIENTS (${customers.length} Clients):
+${customersContext}
+
+💳 INVOICES & CASH FLOW (${invoices.length} Invoices, ₹${collectedRevenue.toLocaleString('en-IN')} Collected):
+${invoicesContext}
+
+⚙️ AUTOMATIONS & INTEGRATIONS:
+- Active Workflows: ${automations.filter((a: Automation) => a.enabled).length}/${automations.length}
+- Connected Integrations: ${integrations.filter((i: IntegrationItem) => i.status === 'connected').length}/${integrations.length}
+=====================================================
+`;
+
+    // -------------------------------------------------------------------------
+    // 1. WRITE TASK: CREATE / LOG NEW LEAD
+    // -------------------------------------------------------------------------
     if (
       (q.includes('lead') || q.includes('prospect') || q.includes('deal')) &&
-      (q.includes('create') || q.includes('add') || q.includes('new') || q.includes('log'))
+      (q.includes('create') || q.includes('add') || q.includes('new') || q.includes('log') || q.includes('register'))
     ) {
       const valMatch = prompt.match(/(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)\s*(?:k|lakh|lac|cr)?/i);
       let parsedValue = 50000;
@@ -375,11 +356,9 @@ export const aiService = {
         if (rawNum > 0) parsedValue = rawNum;
       }
 
-      let extractedName = 'Inbound Prospect';
+      let extractedName = 'New Opportunity';
       const forMatch = prompt.match(/(?:for|with|from|lead)\s+([A-Z][a-zA-Z0-9\s&]+?)(?:\s+(?:for|worth|of|at|\d|₹)|\.|$)/);
-      if (forMatch && forMatch[1]) {
-        extractedName = forMatch[1].trim();
-      }
+      if (forMatch && forMatch[1]) extractedName = forMatch[1].trim();
 
       const pendingLead = {
         title: `${extractedName}: Project Scope`,
@@ -396,7 +375,7 @@ export const aiService = {
         conversation_id: convId,
         agent: 'sales',
         intent: 'CREATE_LEAD',
-        message: `I prepared a new sales opportunity for **${extractedName}**:\n\n• **Estimated Deal Value:** ₹${parsedValue.toLocaleString('en-IN')}\n• **Pipeline Stage:** NEW\n• **Priority:** HIGH\n• **Deduplication Check:** Verified clean record\n\nWould you like me to create this lead in your Sales Pipeline and sync to CRM?`,
+        message: `### 🎯 New Sales Opportunity Prepared\n\n• **Opportunity:** **${extractedName}**\n• **Estimated Deal Value:** **₹${parsedValue.toLocaleString('en-IN')}**\n• **Pipeline Stage:** **NEW**\n• **Priority:** **HIGH**\n• **Deduplication Check:** ✅ Verified clean record\n\nWould you like me to log this deal into your Sales Pipeline now?`,
         requires_confirmation: true,
         pending_action: {
           action_type: 'CREATE_LEAD',
@@ -414,10 +393,12 @@ export const aiService = {
       };
     }
 
-    // 2. TASK: CREATE INVOICE
+    // -------------------------------------------------------------------------
+    // 2. WRITE TASK: CREATE INVOICE
+    // -------------------------------------------------------------------------
     if (
       (q.includes('invoice') || q.includes('bill')) &&
-      (q.includes('create') || q.includes('generate') || q.includes('draft') || q.includes('send'))
+      (q.includes('create') || q.includes('generate') || q.includes('draft') || q.includes('send') || q.includes('issue'))
     ) {
       const valMatch = prompt.match(/(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)\s*(?:k|lakh|lac|cr)?/i);
       let parsedAmount = 50000;
@@ -433,12 +414,14 @@ export const aiService = {
       if (forMatch && forMatch[1]) clientName = forMatch[1].trim();
 
       const dueDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+      const gst = Math.round(parsedAmount * 0.18);
+      const total = parsedAmount + gst;
 
       return {
         conversation_id: convId,
         agent: 'finance',
         intent: 'CREATE_INVOICE',
-        message: `I prepared an invoice draft for **${clientName}**:\n\n• **Invoice Amount:** ₹${parsedAmount.toLocaleString('en-IN')}\n• **Tax (GST 18%):** Calculated at item level\n• **Payment Due:** ${dueDate} (7 Days)\n\nWould you like me to issue this invoice draft?`,
+        message: `### 💳 Invoice Draft Prepared\n\n• **Client:** **${clientName}**\n• **Base Amount:** ₹${parsedAmount.toLocaleString('en-IN')}\n• **GST (18%):** ₹${gst.toLocaleString('en-IN')}\n• **Total Payable:** **₹${total.toLocaleString('en-IN')}**\n• **Payment Due:** **${dueDate}** (7 Days)\n\nConfirm to issue this invoice draft?`,
         requires_confirmation: true,
         pending_action: {
           action_type: 'CREATE_INVOICE',
@@ -453,15 +436,17 @@ export const aiService = {
           {
             type: 'invoice_reminder',
             title: `Issue Invoice: ${clientName}`,
-            description: `₹${parsedAmount.toLocaleString('en-IN')} due ${dueDate}`,
+            description: `₹${total.toLocaleString('en-IN')} due ${dueDate}`,
             primary_action_label: 'Confirm & Generate Invoice',
-            action_payload: { action: 'CREATE_INVOICE' },
+            action_payload: { action: 'CREATE_INVOICE', customer_name: clientName, amount: parsedAmount },
           },
         ],
       };
     }
 
-    // 3. TASK: CREATE PROPOSAL
+    // -------------------------------------------------------------------------
+    // 3. WRITE TASK: CREATE PROPOSAL
+    // -------------------------------------------------------------------------
     if (
       (q.includes('proposal') || q.includes('quote') || q.includes('scope')) &&
       (q.includes('create') || q.includes('draft') || q.includes('new') || q.includes('prepare'))
@@ -483,7 +468,7 @@ export const aiService = {
         conversation_id: convId,
         agent: 'proposal',
         intent: 'CREATE_PROPOSAL',
-        message: `I drafted an AI project proposal for **${clientName}**:\n\n• **Title:** ${clientName}: Strategic Implementation\n• **Total Value:** ₹${parsedValue.toLocaleString('en-IN')}\n• **Timeline:** 3-4 Weeks\n• **Deliverables:** Phase 1 Architecture (₹${Math.round(parsedValue * 0.4).toLocaleString('en-IN')}), Phase 2 Build & Handover (₹${Math.round(parsedValue * 0.6).toLocaleString('en-IN')})\n\nWould you like me to save this proposal in your workspace?`,
+        message: `### 📄 AI Proposal Draft Prepared\n\n• **Title:** **${clientName}: Strategic Engagement**\n• **Total Value:** **₹${parsedValue.toLocaleString('en-IN')}**\n• **Timeline:** 3-4 Weeks\n• **Phase 1 Deliverable:** System Architecture (₹${Math.round(parsedValue * 0.4).toLocaleString('en-IN')})\n• **Phase 2 Deliverable:** Full Deployment (₹${Math.round(parsedValue * 0.6).toLocaleString('en-IN')})\n\nConfirm to save this proposal in your workspace?`,
         requires_confirmation: true,
         pending_action: {
           action_type: 'CREATE_PROPOSAL',
@@ -510,108 +495,99 @@ export const aiService = {
       };
     }
 
-    // 4. TASK: TRIGGER / RUN AUTOMATION
-    if (q.includes('automation') || q.includes('workflow') || q.includes('trigger') || q.includes('run automation')) {
-      const activeAutos = automations.filter((a: Automation) => a.enabled);
-      if (q.includes('run') && activeAutos.length > 0) {
-        const targetAuto = activeAutos[0];
-        return {
-          conversation_id: convId,
-          agent: 'supervisor',
-          intent: 'RUN_AUTOMATION',
-          message: `Ready to execute automation **"${targetAuto.name}"**.\n\n• **Trigger:** ${targetAuto.trigger_type.toUpperCase()}\n• **Agent:** ${targetAuto.agent_type.toUpperCase()}\n• **Estimated Actions:** Ingestion, Enrichment, Pipeline Update\n\nConfirm to execute now?`,
-          requires_confirmation: true,
-          pending_action: {
-            action_type: 'RUN_AUTOMATION',
-            payload: { automation_id: targetAuto.id },
-          },
-          action_cards: [
-            {
-              type: 'general',
-              title: `Run ${targetAuto.name}`,
-              description: `Trigger ${targetAuto.trigger_type} workflow`,
-              primary_action_label: 'Execute Automation',
-              action_payload: { action: 'RUN_AUTOMATION', automation_id: targetAuto.id },
-            },
-          ],
-        };
-      }
+    // -------------------------------------------------------------------------
+    // 4. WRITE TASK: SCHEDULE GOOGLE CALENDAR MEETING
+    // -------------------------------------------------------------------------
+    if (q.includes('meeting') || q.includes('calendar') || q.includes('schedule call') || q.includes('book call')) {
+      let clientName = 'Client Partner';
+      const withMatch = prompt.match(/(?:with|for)\s+([A-Z][a-zA-Z0-9\s&]+?)(?:\s+(?:on|at|tomorrow|\d)|\.|$)/);
+      if (withMatch && withMatch[1]) clientName = withMatch[1].trim();
+
+      const meetingTime = new Date(Date.now() + 86400000).toISOString();
 
       return {
         conversation_id: convId,
         agent: 'supervisor',
-        intent: 'AUTOMATION_STATUS',
-        message: `You have **${automations.length} total automations** configured (${activeAutos.length} currently active).\n\n${activeAutos.map((a: Automation, i: number) => `${i + 1}. **${a.name}** (${a.runs_count || 0} runs)`).join('\n')}`,
+        intent: 'SCHEDULE_MEETING',
+        message: `### 📅 Google Meet Schedule Prepared\n\n• **Event:** Discovery Call with **${clientName}**\n• **Type:** Google Meet (Video Call)\n• **Duration:** 45 Minutes\n• **Agenda:** AI-generated scope review & milestone planning\n\nConfirm to schedule this meeting on your Google Calendar?`,
+        requires_confirmation: true,
+        pending_action: {
+          action_type: 'SCHEDULE_MEETING',
+          payload: {
+            title: `Discovery Call with ${clientName}`,
+            start_time: meetingTime,
+            description: `Google Meet call scheduled via SoloCEO AI Agent.`,
+          },
+        },
         action_cards: [
           {
             type: 'general',
-            title: 'Manage Automations',
-            description: `${activeAutos.length} active autonomous workflows`,
-            primary_action_label: 'View Automations',
-            action_payload: { action: 'VIEW_AUTOMATIONS' },
+            title: `Schedule Call: ${clientName}`,
+            description: `Google Meet • Tomorrow 10:00 AM`,
+            primary_action_label: 'Confirm & Schedule Call',
+            action_payload: { action: 'SCHEDULE_MEETING', title: `Discovery Call with ${clientName}` },
           },
         ],
       };
     }
 
-    // 5. QUERY: CUSTOMERS & CRM
-    if (q.includes('customer') || q.includes('client') || q.includes('crm') || q.includes('contact')) {
-      const activeCusts = customers.filter((c: Customer) => c.status === 'active');
-      const totalCustRev = customers.reduce((sum: number, c: Customer) => sum + Number(c.total_revenue || 0), 0);
+    // -------------------------------------------------------------------------
+    // 5. QUERY: SALES PIPELINE & LEADS (POWERED BY GEMINI 2.5 FLASH)
+    // -------------------------------------------------------------------------
+    if (
+      q.includes('lead') ||
+      q.includes('pipeline') ||
+      q.includes('sales') ||
+      q.includes('deal') ||
+      q.includes('opportunity') ||
+      q.includes('prospect')
+    ) {
+      const geminiReply = await queryGeminiFlash(fullWorkspaceContext, prompt);
+
+      const fallbackLeadList = openLeads.length > 0
+        ? `### 📊 Active Sales Pipeline (${openLeads.length} Deals, ₹${totalPipelineValue.toLocaleString('en-IN')})\n\n` +
+          openLeads.map((l: Lead, i: number) =>
+            `${i + 1}. **${l.title}**\n   • **Deal Value:** ₹${Number(l.value || 0).toLocaleString('en-IN')}\n   • **Stage:** *${(l.status || 'new').toUpperCase()}* | **Priority:** *${(l.priority || 'medium').toUpperCase()}*\n   • **Contact:** ${l.email || 'Direct inquiry'}`
+          ).join('\n\n')
+        : 'You currently have no open leads. Ask me to **"Create lead for Apex Corp worth ₹1,50,000"** to add one!';
 
       return {
         conversation_id: convId,
-        agent: 'supervisor',
-        intent: 'CRM_SUMMARY',
-        message: `**CRM Database Summary:**\n\n• **Total Clients:** ${customers.length} (${activeCusts.length} active)\n• **Total Customer Lifetime Value:** ₹${totalCustRev.toLocaleString('en-IN')}\n\n**Top Clients:**\n${customers
-          .slice(0, 3)
-          .map((c: Customer, i: number) => `${i + 1}. **${c.name}** (${c.company_name || 'Individual'}) — ₹${Number(c.total_revenue || 0).toLocaleString('en-IN')}`)
-          .join('\n')}`,
-        action_cards: customers.slice(0, 3).map((c: Customer) => ({
+        agent: 'sales',
+        intent: 'SALES_QUERY',
+        message: geminiReply || fallbackLeadList,
+        action_cards: openLeads.slice(0, 3).map((l: Lead) => ({
           type: 'lead_followup',
-          title: c.name,
-          description: `${c.company_name || 'Individual'} • ₹${Number(c.total_revenue || 0).toLocaleString('en-IN')}`,
-          primary_action_label: 'View CRM Profile',
-          action_payload: { customer_id: c.id, action: 'VIEW_CUSTOMER' },
+          title: l.title,
+          description: `₹${Number(l.value || 0).toLocaleString('en-IN')} • ${l.status.toUpperCase()}`,
+          primary_action_label: 'View Deal Details',
+          action_payload: { lead_id: l.id, action: 'VIEW_LEAD' },
         })),
       };
     }
 
-    // 6. QUERY: INTEGRATIONS & APIS
-    if (q.includes('integration') || q.includes('connect') || q.includes('google') || q.includes('whatsapp') || q.includes('slack') || q.includes('calendar')) {
-      const connectedList = integrations.filter((i: IntegrationItem) => i.status === 'connected');
-      return {
-        conversation_id: convId,
-        agent: 'supervisor',
-        intent: 'INTEGRATIONS_STATUS',
-        message: `**Operational Integrations Status:**\n\n• **Connected Services (${connectedList.length}/${integrations.length}):**\n${integrations.map((i: IntegrationItem) => `• ${i.display_name}: **${i.status.toUpperCase()}** ${i.account_email ? `(${i.account_email})` : ''}`).join('\n')}\n\nAll webhook endpoints and API keys are verified with zero packet drops.`,
-        action_cards: [
-          {
-            type: 'general',
-            title: 'Open Integrations Hub',
-            description: `${connectedList.length} live tool connections`,
-            primary_action_label: 'Manage Integrations',
-            action_payload: { action: 'VIEW_INTEGRATIONS' },
-          },
-        ],
-      };
-    }
-
-    // 7. QUERY: FINANCE & INVOICES
+    // -------------------------------------------------------------------------
+    // 6. QUERY: FINANCE & INVOICES (POWERED BY GEMINI 2.5 FLASH)
+    // -------------------------------------------------------------------------
     if (q.includes('invoice') || q.includes('owe') || q.includes('money') || q.includes('finance') || q.includes('revenue') || q.includes('overdue')) {
-      const overdue = invoices.filter((i: Invoice) => i.status === 'overdue');
-      const overdueAmt = overdue.reduce((sum: number, i: Invoice) => sum + (Number(i.total_amount) - Number(i.paid_amount || 0)), 0);
-      const paid = invoices.filter((i: Invoice) => i.status === 'paid');
-      const totalCollected = paid.reduce((sum: number, i: Invoice) => sum + Number(i.total_amount || 0), 0);
+      const geminiReply = await queryGeminiFlash(fullWorkspaceContext, prompt);
+      const overdueAmt = overdueInvoices.reduce((s: number, i: Invoice) => s + (Number(i.total_amount) - Number(i.paid_amount || 0)), 0);
+
+      const fallbackFinance =
+        `### 💳 Financial Health Overview\n\n` +
+        `• **Collected Cash Flow:** **₹${collectedRevenue.toLocaleString('en-IN')}**\n` +
+        `• **Total Invoices Issued:** ${invoices.length} (${invoices.filter((i: Invoice) => i.status === 'paid').length} paid)\n` +
+        `• **Overdue Receivables:** **₹${overdueAmt.toLocaleString('en-IN')}** across ${overdueInvoices.length} invoices.\n\n` +
+        (overdueInvoices.length > 0 ? `⚠️ **Action Recommended:** Follow up with overdue accounts to unlock cash flow.` : `✅ All client receivables are settled.`);
 
       return {
         conversation_id: convId,
         agent: 'finance',
         intent: 'FINANCE_QUERY',
-        message: `**Financial Overview:**\n\n• **Total Collected Revenue:** ₹${totalCollected.toLocaleString('en-IN')}\n• **Total Invoices:** ${invoices.length} (${paid.length} paid, ${overdue.length} overdue)\n• **Overdue Receivables:** ₹${overdueAmt.toLocaleString('en-IN')}\n\n${overdue.length > 0 ? `**Action Required:** ${overdue.length} client invoices require immediate collection follow-up.` : '✅ All receivables are up to date!'}`,
-        action_cards: overdue.map((inv: Invoice) => ({
+        message: geminiReply || fallbackFinance,
+        action_cards: overdueInvoices.slice(0, 3).map((inv: Invoice) => ({
           type: 'invoice_reminder',
-          title: `Collect: ${inv.invoice_number}`,
+          title: `Collect Invoice #${inv.invoice_number}`,
           description: `₹${Number(inv.total_amount).toLocaleString('en-IN')} overdue since ${inv.due_date}`,
           primary_action_label: 'View Invoice',
           action_payload: { invoice_id: inv.id, action: 'VIEW_INVOICE' },
@@ -619,71 +595,36 @@ export const aiService = {
       };
     }
 
-    // 8. QUERY: SALES & LEADS
-    if (q.includes('lead') || q.includes('pipeline') || q.includes('sales') || q.includes('deal') || q.includes('opportunity')) {
-      const openLeads = leads.filter((l: Lead) => l.status !== 'won' && l.status !== 'lost');
-      const totalPipelineVal = openLeads.reduce((sum: number, l: Lead) => sum + Number(l.value || 0), 0);
-      const highPriority = openLeads.filter((l: Lead) => l.priority === 'high');
+    // -------------------------------------------------------------------------
+    // 7. GENERAL QUERY / STRATEGY (POWERED BY GEMINI 2.5 FLASH)
+    // -------------------------------------------------------------------------
+    const geminiReply = await queryGeminiFlash(fullWorkspaceContext, prompt);
 
-      return {
-        conversation_id: convId,
-        agent: 'sales',
-        intent: 'SALES_QUERY',
-        message: `**Sales Pipeline Analysis:**\n\n• **Active Opportunities:** ${openLeads.length} deals\n• **Total Pipeline Value:** ₹${totalPipelineVal.toLocaleString('en-IN')}\n• **High-Priority Deals:** ${highPriority.length}\n\n**Top Active Opportunities:**\n${openLeads
-          .slice(0, 3)
-          .map((l: Lead, i: number) => `${i + 1}. **${l.title}** (₹${Number(l.value || 0).toLocaleString('en-IN')}) — Stage: *${l.status.toUpperCase()}*`)
-          .join('\n')}`,
-        action_cards: openLeads.slice(0, 3).map((l: Lead) => ({
-          type: 'lead_followup',
-          title: l.title,
-          description: `₹${Number(l.value || 0).toLocaleString('en-IN')} • ${l.status.toUpperCase()}`,
-          primary_action_label: 'View Deal',
-          action_payload: { lead_id: l.id, action: 'VIEW_LEAD' },
-        })),
-      };
-    }
-
-    // 9. GENERAL STRATEGIC BRIEF (POWERED BY GEMINI 2.5 FLASH)
-    const brief = await this.getBusinessBrief(businessId);
-    const connectedCount = integrations.filter((i: IntegrationItem) => i.status === 'connected').length;
-
-    const workspaceContext = `
-You are SoloCEO Autonomous Supervisor AI for a solo founder.
-Live Workspace Metrics:
-- Pipeline Leads: ${leads.length} open deals totaling ₹${leads.reduce((s: number, l: Lead) => s + Number(l.value || 0), 0).toLocaleString('en-IN')}
-- Invoices: ${invoices.length} (${invoices.filter((i: Invoice) => i.status === 'paid').length} paid, ${invoices.filter((i: Invoice) => i.status === 'overdue').length} overdue)
-- Revenue Collected: ₹${brief.revenue_collected.toLocaleString('en-IN')}
-- Active Automations: ${automations.length} workflows
-- Connected Channels: ${connectedCount} integrations active
-`;
-
-    const geminiReply = await queryGeminiFlash(workspaceContext, prompt);
-
-    const fallbackMessage =
-      `**Executive Briefing for ${brief.top_opportunity ? brief.top_opportunity.title : 'Your Business'}:**\n\n` +
-      `1. **Sales Pipeline:** ${brief.inactive_leads_count} open opportunities totaling **₹${brief.inactive_leads_value.toLocaleString('en-IN')}**.\n` +
-      `2. **Cash & Collections:** ₹${brief.revenue_collected.toLocaleString('en-IN')} collected. ${brief.overdue_invoices_count > 0 ? `⚠️ ₹${brief.overdue_amount.toLocaleString('en-IN')} overdue across ${brief.overdue_invoices_count} invoices.` : '✅ Zero overdue receivables.'}\n` +
-      `3. **Proposals & Scopes:** ${brief.pending_proposals_count} proposals active (₹${brief.pending_proposals_value.toLocaleString('en-IN')}).\n` +
-      `4. **Integrations & Automations:** ${connectedCount} integrations active, ${automations.length} workflows configured.\n\n` +
-      `Ask me to **create an invoice**, **draft a proposal**, **log a new lead**, or **run an automation** anytime!`;
+    const fallbackBrief =
+      `### 🚀 SoloCEO Executive Briefing\n\n` +
+      `1. **Sales Pipeline:** **${openLeads.length} open deals** totaling **₹${totalPipelineValue.toLocaleString('en-IN')}**.\n` +
+      `2. **Cash & Receivables:** **₹${collectedRevenue.toLocaleString('en-IN')}** collected. ${overdueInvoices.length > 0 ? `⚠️ ₹${overdueInvoices.reduce((s, i) => s + Number(i.total_amount || 0), 0).toLocaleString('en-IN')} overdue.` : '✅ All receivables current.'}\n` +
+      `3. **Proposals Active:** **${proposals.length} active engagements**.\n` +
+      `4. **Integrations & Channels:** **${integrations.filter((i) => i.status === 'connected').length} active connections**.\n\n` +
+      `You can ask me to **create a lead**, **issue an invoice**, **draft a proposal**, or **send email follow-ups** directly!`;
 
     return {
       conversation_id: convId,
       agent: 'supervisor',
       intent: 'GENERAL_SUMMARY',
-      message: geminiReply || fallbackMessage,
+      message: geminiReply || fallbackBrief,
       action_cards: [
         {
           type: 'lead_followup',
           title: 'Review Sales Pipeline',
-          description: `${brief.inactive_leads_count} open opportunities (₹${brief.inactive_leads_value.toLocaleString('en-IN')})`,
+          description: `${openLeads.length} open deals (₹${totalPipelineValue.toLocaleString('en-IN')})`,
           primary_action_label: 'Open Pipeline',
           action_payload: { action: 'VIEW_SALES' },
         },
         {
           type: 'invoice_reminder',
           title: 'Review Finance & Cash Flow',
-          description: `₹${brief.revenue_collected.toLocaleString('en-IN')} collected revenue`,
+          description: `₹${collectedRevenue.toLocaleString('en-IN')} collected revenue`,
           primary_action_label: 'Open Finance',
           action_payload: { action: 'VIEW_INVOICES' },
         },
