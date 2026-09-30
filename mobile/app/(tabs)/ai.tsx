@@ -33,6 +33,7 @@ import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
 import { MarkdownText } from '../../src/components/MarkdownText';
+import { RevenueCatAdBanner } from '../../src/components/RevenueCatAdBanner';
 import { aiService } from '../../src/services/aiService';
 import { useAuthStore } from '../../src/store/authStore';
 import { AIMessage, AIAgentActionCard } from '../../src/types';
@@ -251,6 +252,15 @@ export default function AICommandCenterScreen() {
           contentContainerStyle={styles.scrollContent}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
+          {/* RevenueCat Sponsored Power-Up Ad */}
+          <RevenueCatAdBanner
+            variant="rewarded"
+            style={{ marginHorizontal: 16, marginTop: 4, marginBottom: 12 }}
+            onClaimReward={() => {
+              Alert.alert('Power-Up Claimed!', 'You have received +5 bonus AI credits sponsored by RevenueCat.');
+            }}
+          />
+
           {/* Suggested Quick Prompts */}
           {messages.length <= 2 && (
             <View style={styles.promptsContainer}>

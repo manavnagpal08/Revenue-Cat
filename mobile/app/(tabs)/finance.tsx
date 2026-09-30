@@ -15,6 +15,7 @@ import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
 import { StatCard } from '../../src/components/StatCard';
+import { RevenueCatAdBanner } from '../../src/components/RevenueCatAdBanner';
 import { invoiceService } from '../../src/services/invoiceService';
 import { useAuthStore } from '../../src/store/authStore';
 import { Invoice } from '../../src/types';
@@ -212,6 +213,9 @@ export default function FinanceScreen() {
             );
           })
         )}
+
+        {/* RevenueCat Trust Badge Banner */}
+        <RevenueCatAdBanner variant="compact" style={{ marginHorizontal: 20, marginTop: 12, marginBottom: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );

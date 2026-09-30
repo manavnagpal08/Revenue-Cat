@@ -15,6 +15,7 @@ import { Plus, Sparkles, Filter, PhoneCall, ArrowUpRight, Search, Users } from '
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
+import { RevenueCatAdBanner } from '../../src/components/RevenueCatAdBanner';
 import { leadService } from '../../src/services/leadService';
 import { useAuthStore } from '../../src/store/authStore';
 import { Lead } from '../../src/types';
@@ -153,6 +154,9 @@ export default function SalesScreen() {
             Follow up with highest-probability deals to accelerate conversion.
           </Text>
         </GlassCard>
+
+        {/* RevenueCat Power-Up Ad */}
+        <RevenueCatAdBanner variant="sales" style={{ marginHorizontal: 20, marginBottom: 16 }} />
 
         {/* Deals List */}
         <View style={styles.listHeaderRow}>
