@@ -90,7 +90,7 @@ export default function RegisterScreen() {
       
       const newUserId = authenticatedUser?.id || 'google-' + Date.now();
       const userEmail = authenticatedUser?.email || email.trim().toLowerCase() || 'founder@soloceo.app';
-      const userFullName = fullName.trim() || authenticatedUser?.user_metadata?.full_name || userEmail.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Founder';
+      const userFullName = fullName.trim() || authenticatedUser?.user_metadata?.full_name || userEmail.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Founder';
       const userAvatar = authenticatedUser?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200';
 
       useAuthStore.setState({
@@ -108,8 +108,8 @@ export default function RegisterScreen() {
         isInitialized: true,
       });
       router.replace('/(onboarding)/setup-business');
-    } catch {
-      router.replace('/(onboarding)/setup-business');
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Google Sign-Up failed.');
     } finally {
       setGoogleLoading(false);
     }

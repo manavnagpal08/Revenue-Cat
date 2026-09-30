@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 20,
-    ...Shadows.lg,
+    ...Shadows.card,
   },
   topHeader: {
     flexDirection: 'row',

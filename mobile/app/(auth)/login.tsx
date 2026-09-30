@@ -18,6 +18,7 @@ import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
 import { GoogleButton } from '../../src/components/GoogleButton';
 import { authService } from '../../src/services/authService';
+import { workspaceService } from '../../src/services/workspaceService';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function LoginScreen() {
@@ -43,54 +44,38 @@ export default function LoginScreen() {
         password,
       });
 
-      const userEmail = email.trim().toLowerCase();
-      const rawName = userEmail.split('@')[0].replace(/[._-]+/g, ' ');
-      const userName = rawName
-        .split(' ')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ') || 'Founder';
-      const userId = authData?.user?.id || 'usr-' + Date.now();
+      const user = authData?.user;
+      if (!user) throw new Error('Could not retrieve user profile.');
 
-      const bizName = `${userName}'s Workspace`;
-      const bizId = 'biz-' + Date.now();
+      const userEmail = user.email || email.trim().toLowerCase();
+      const userName = user.user_metadata?.full_name || userEmail.split('@')[0];
+      const userId = user.id;
+
+      // Fetch user's real businesses
+      const userBusinesses = await workspaceService.getUserBusinesses(userId);
 
       useAuthStore.setState({
-        session: { user: { id: userId, email: userEmail } } as any,
-        user: { id: userId, email: userEmail } as any,
+        session: authData.session || ({ user: { id: userId, email: userEmail } } as any),
+        user: user as any,
         profile: {
           id: userId,
           email: userEmail,
           full_name: userName,
           avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
         },
-        businesses: [
-          {
-            id: bizId,
-            name: bizName,
-            slug: bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-            owner_id: userId,
-            industry: 'Consulting & Services',
-            currency: 'INR',
-            currency_symbol: '₹',
-            created_at: new Date().toISOString(),
-          },
-        ],
-        currentBusiness: {
-          id: bizId,
-          name: bizName,
-          slug: bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          owner_id: userId,
-          industry: 'Consulting & Services',
-          currency: 'INR',
-          currency_symbol: '₹',
-          created_at: new Date().toISOString(),
-        },
+        businesses: userBusinesses,
+        currentBusiness: userBusinesses.length > 0 ? userBusinesses[0] : null,
         isLoading: false,
         isInitialized: true,
       });
-      router.replace('/(tabs)');
+
+      if (userBusinesses.length === 0) {
+        router.replace('/(onboarding)/setup-business');
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Login failed. Please try again.');
+      setErrorMessage(err?.message || 'Login failed. Please verify your credentials.');
     } finally {
       setLoading(false);
     }
@@ -102,56 +87,37 @@ export default function LoginScreen() {
     try {
       const authResult: any = await authService.signInWithGoogle();
       const authenticatedUser = authResult?.user;
-      
-      const userEmail = authenticatedUser?.email || email.trim().toLowerCase() || 'founder@soloceo.app';
-      const rawName = authenticatedUser?.user_metadata?.full_name || userEmail.split('@')[0].replace(/[._-]+/g, ' ');
-      const userName = rawName
-        .split(' ')
-        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ') || 'Founder';
-      const userId = authenticatedUser?.id || 'usr-' + Date.now();
-      const userAvatar = authenticatedUser?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200';
+      if (!authenticatedUser) throw new Error('Google authentication failed.');
 
-      const bizName = `${userName}'s Studio`;
-      const bizId = 'biz-' + Date.now();
+      const userEmail = authenticatedUser.email || 'founder@soloceo.app';
+      const userName = authenticatedUser.user_metadata?.full_name || userEmail.split('@')[0];
+      const userId = authenticatedUser.id;
+      const userAvatar = authenticatedUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200';
+
+      const userBusinesses = await workspaceService.getUserBusinesses(userId);
 
       useAuthStore.setState({
-        session: { user: { id: userId, email: userEmail } } as any,
-        user: { id: userId, email: userEmail } as any,
+        session: authResult.session || ({ user: { id: userId, email: userEmail } } as any),
+        user: authenticatedUser,
         profile: {
           id: userId,
           email: userEmail,
           full_name: userName,
           avatar_url: userAvatar,
         },
-        businesses: [
-          {
-            id: bizId,
-            name: bizName,
-            slug: bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-            owner_id: userId,
-            industry: 'Design & Tech Agency',
-            currency: 'INR',
-            currency_symbol: '₹',
-            created_at: new Date().toISOString(),
-          },
-        ],
-        currentBusiness: {
-          id: bizId,
-          name: bizName,
-          slug: bizName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          owner_id: userId,
-          industry: 'Design & Tech Agency',
-          currency: 'INR',
-          currency_symbol: '₹',
-          created_at: new Date().toISOString(),
-        },
+        businesses: userBusinesses,
+        currentBusiness: userBusinesses.length > 0 ? userBusinesses[0] : null,
         isLoading: false,
         isInitialized: true,
       });
-      router.replace('/(tabs)');
-    } catch {
-      router.replace('/(tabs)');
+
+      if (userBusinesses.length === 0) {
+        router.replace('/(onboarding)/setup-business');
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Google Sign-In failed.');
     } finally {
       setGoogleLoading(false);
     }

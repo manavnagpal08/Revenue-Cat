@@ -11,15 +11,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Store, ChevronDown, ArrowRight } from 'lucide-react-native';
+import { ArrowLeft, Store, ChevronDown, ArrowRight, CheckCircle2, Circle } from 'lucide-react-native';
 import { Colors } from '../../src/constants/theme';
+import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function SetupBusinessScreen() {
   const router = useRouter();
-  const [businessName, setBusinessName] = useState('Acme Digital');
+  const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('Agency');
   const [industry, setIndustry] = useState('Digital Services');
+  const [seedDemoData, setSeedDemoData] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -34,12 +36,55 @@ export default function SetupBusinessScreen() {
 
     setLoading(true);
     try {
-      await createBusiness({
+      const createdBiz = await createBusiness({
         name: businessName.trim(),
         industry: industry.trim() || 'Digital Services',
         currency: 'INR',
         currency_symbol: '₹',
       });
+
+      if (seedDemoData && createdBiz?.id) {
+        try {
+          await supabase.from('leads').insert([
+            {
+              business_id: createdBiz.id,
+              title: 'Zenith Tech: Full-Stack Web App',
+              company: 'Zenith Tech',
+              contact_name: 'Ananya Sharma',
+              email: 'ananya@zenith.in',
+              value: 120000,
+              source: 'Website Contact Form',
+              status: 'new',
+              priority: 'high',
+            },
+            {
+              business_id: createdBiz.id,
+              title: 'Apex Brands: Brand Identity & Strategy',
+              company: 'Apex Brands',
+              contact_name: 'Rohan Mehta',
+              email: 'rohan@apexbrands.co',
+              value: 65000,
+              source: 'WhatsApp Business',
+              status: 'qualified',
+              priority: 'medium',
+            },
+          ]);
+
+          await supabase.from('invoices').insert([
+            {
+              business_id: createdBiz.id,
+              invoice_number: 'INV-1001',
+              customer_name: 'Zenith Tech',
+              total_amount: 60000,
+              paid_amount: 60000,
+              status: 'paid',
+              due_date: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+            },
+          ]);
+        } catch (seedErr) {
+          console.warn('Sample seed notice:', seedErr);
+        }
+      }
 
       router.replace('/(tabs)');
     } catch (err: any) {
@@ -60,7 +105,7 @@ export default function SetupBusinessScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <ArrowLeft size={20} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.stepIndicator}>1/4</Text>
+          <Text style={styles.stepIndicator}>1/1</Text>
         </View>
 
         <ScrollView
@@ -72,9 +117,9 @@ export default function SetupBusinessScreen() {
             <View style={styles.iconCircle}>
               <Store size={32} color="#059669" />
             </View>
-            <Text style={styles.title}>Let's set up your business</Text>
+            <Text style={styles.title}>Set Up Your Business</Text>
             <Text style={styles.subtitle}>
-              This helps us personalize your SoloCEO experience.
+              Personalize your workspace for automated sales, billing & AI operations.
             </Text>
           </View>
 
@@ -88,10 +133,10 @@ export default function SetupBusinessScreen() {
 
             {/* Business Name */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Business Name</Text>
+              <Text style={styles.inputLabel}>Business / Agency Name</Text>
               <TextInput
                 style={styles.textInput}
-                placeholder="Acme Digital"
+                placeholder="e.g. Nexus Design Studio"
                 placeholderTextColor="#94A3B8"
                 value={businessName}
                 onChangeText={(val) => {
@@ -101,25 +146,38 @@ export default function SetupBusinessScreen() {
               />
             </View>
 
-            {/* Business Type Dropdown */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Business Type</Text>
-              <TouchableOpacity style={styles.dropdownBox} activeOpacity={0.8}>
-                <Text style={styles.dropdownText}>{businessType}</Text>
-                <ChevronDown size={16} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
             {/* Industry Dropdown */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Industry</Text>
-              <TouchableOpacity style={styles.dropdownBox} activeOpacity={0.8}>
-                <Text style={styles.dropdownText}>{industry}</Text>
-                <ChevronDown size={16} color="#64748B" />
-              </TouchableOpacity>
+              <Text style={styles.inputLabel}>Industry / Specialty</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. Design, Software, Consulting"
+                placeholderTextColor="#94A3B8"
+                value={industry}
+                onChangeText={setIndustry}
+              />
             </View>
 
-            {/* Next Button */}
+            {/* Seed Sample Data Option */}
+            <TouchableOpacity
+              style={styles.seedRow}
+              onPress={() => setSeedDemoData(!seedDemoData)}
+              activeOpacity={0.8}
+            >
+              {seedDemoData ? (
+                <CheckCircle2 size={20} color="#059669" />
+              ) : (
+                <Circle size={20} color="#94A3B8" />
+              )}
+              <View style={styles.seedTextWrap}>
+                <Text style={styles.seedTitle}>Populate with Starter CRM Data</Text>
+                <Text style={styles.seedSubtitle}>
+                  Includes initial sample leads & invoices to test the AI operating suite.
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Submit Button */}
             <TouchableOpacity
               style={styles.nextBtn}
               onPress={handleNext}
@@ -127,7 +185,7 @@ export default function SetupBusinessScreen() {
               activeOpacity={0.85}
             >
               <Text style={styles.nextBtnText}>
-                {loading ? 'Creating...' : 'Next'}
+                {loading ? 'Setting up Workspace...' : 'Launch Workspace'}
               </Text>
               {!loading && <ArrowRight size={16} color="#FFFFFF" />}
             </TouchableOpacity>
@@ -248,6 +306,33 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontWeight: '500',
   },
+  seedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F1F5F9',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  seedTextWrap: {
+    flex: 1,
+  },
+  seedTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: 'Manrope_700Bold',
+  },
+  seedSubtitle: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontFamily: 'Manrope_400Regular',
+    marginTop: 2,
+    lineHeight: 16,
+  },
   nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -256,7 +341,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
     borderRadius: 14,
     paddingVertical: 14,
-    marginTop: 10,
+    marginTop: 6,
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,

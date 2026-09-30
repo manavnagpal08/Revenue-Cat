@@ -17,155 +17,138 @@ export const authService = {
    * Registers a new user account and creates their profile record.
    */
   async signUp({ fullName, email, password }: SignUpParams) {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-          },
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = fullName.trim();
+
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: {
+          full_name: cleanName,
         },
-      });
+      },
+    });
 
-      if (error) {
-        console.warn('Supabase signUp error (falling back to local session):', error.message);
-      }
-
-      if (data?.user) {
-        try {
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            email: email.trim(),
-            full_name: fullName.trim(),
-            avatar_url: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200`,
-          });
-        } catch {}
-        return data;
-      }
-    } catch (err: any) {
-      console.warn('Network exception in signUp:', err);
+    if (error) {
+      throw new Error(error.message || 'Registration failed.');
     }
 
-    // Fallback: Generate valid local user session if network is offline or Supabase confirmation pending
-    const fallbackUserId = 'usr-' + Date.now();
-    return {
-      user: {
-        id: fallbackUserId,
-        email: email.trim(),
-        user_metadata: { full_name: fullName.trim() },
-      },
-      session: {
-        access_token: 'local-token-' + Date.now(),
-        user: {
-          id: fallbackUserId,
-          email: email.trim(),
-          user_metadata: { full_name: fullName.trim() },
-        },
-      },
-    } as any;
+    if (data?.user) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email: cleanEmail,
+          full_name: cleanName,
+          avatar_url: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200`,
+        });
+      } catch (profileErr) {
+        console.warn('Profile creation notice:', profileErr);
+      }
+      return data;
+    }
+
+    throw new Error('Could not complete account registration.');
   },
 
   /**
    * Signs in with email and password.
    */
   async signIn({ email, password }: SignInParams) {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+    const cleanEmail = email.trim().toLowerCase();
 
-      if (error) {
-        console.warn('Supabase signIn error:', error.message);
-      } else if (data?.user) {
-        return data;
-      }
-    } catch (err: any) {
-      console.warn('Network exception in signIn:', err);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Invalid email or password.');
     }
 
-    // Fallback local session
-    const fallbackUserId = 'usr-' + Date.now();
-    return {
-      user: {
-        id: fallbackUserId,
-        email: email.trim(),
-        user_metadata: { full_name: email.split('@')[0] },
-      },
-      session: {
-        access_token: 'local-token-' + Date.now(),
-        user: {
-          id: fallbackUserId,
-          email: email.trim(),
-          user_metadata: { full_name: email.split('@')[0] },
-        },
-      },
-    } as any;
+    if (data?.user) {
+      return data;
+    }
+
+    throw new Error('Sign-in failed. Please try again.');
   },
 
   /**
-   * 1-Click Sign in / Sign up with Google using native WebBrowser OAuth session.
+   * Sign in / Sign up with Google using native WebBrowser OAuth session.
    */
   async signInWithGoogle() {
-    try {
-      const WebBrowser = require('expo-web-browser');
-      WebBrowser.maybeCompleteAuthSession();
+    const WebBrowser = require('expo-web-browser');
+    WebBrowser.maybeCompleteAuthSession();
 
-      const redirectUrl = 'soloceo://auth/callback';
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: true,
-        },
-      });
+    const redirectUrl = 'soloceo://auth/callback';
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: true,
+      },
+    });
 
-      if (!error && data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-        if (result.type === 'success' && result.url) {
-          // Extract access token or query params
-          const urlStr = result.url;
-          const hashIndex = urlStr.indexOf('#');
-          const queryIndex = urlStr.indexOf('?');
-          const paramStr = hashIndex !== -1 ? urlStr.substring(hashIndex + 1) : queryIndex !== -1 ? urlStr.substring(queryIndex + 1) : '';
-          
-          const params = new URLSearchParams(paramStr);
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
-
-          if (accessToken && refreshToken) {
-            const setRes = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            if (setRes.data?.user) {
-              return setRes.data;
-            }
-          }
-        }
+    if (error) {
+      if (
+        error.message.toLowerCase().includes('unsupported provider') ||
+        error.message.toLowerCase().includes('not enabled')
+      ) {
+        throw new Error(
+          'Google OAuth is not enabled in your Supabase project dashboard. Please sign in or register with Email & Password.'
+        );
       }
-    } catch (err: any) {
-      console.warn('Google OAuth WebBrowser notice:', err);
+      throw new Error(error.message || 'Google Sign-In failed.');
     }
 
-    // Return dynamic authenticated Google session
-    const fallbackId = 'google-' + Date.now();
-    return {
-      user: {
-        id: fallbackId,
-        email: 'founder.google@soloceo.app',
-        user_metadata: { full_name: 'Google Founder' },
-      },
-      session: {
-        access_token: 'google-token-' + Date.now(),
-        user: {
-          id: fallbackId,
-          email: 'founder.google@soloceo.app',
-          user_metadata: { full_name: 'Google Founder' },
-        },
-      },
-    } as any;
+    if (!data?.url) {
+      throw new Error('Could not initiate Google authentication session.');
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+    if (result.type === 'cancel' || result.type === 'dismiss') {
+      throw new Error('Google Sign-In was cancelled.');
+    }
+
+    if (result.type === 'success' && result.url) {
+      // Extract access token or query params
+      const urlStr = result.url;
+      const hashIndex = urlStr.indexOf('#');
+      const queryIndex = urlStr.indexOf('?');
+      const paramStr =
+        hashIndex !== -1
+          ? urlStr.substring(hashIndex + 1)
+          : queryIndex !== -1
+          ? urlStr.substring(queryIndex + 1)
+          : '';
+
+      const params = new URLSearchParams(paramStr);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        const setRes = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (setRes.data?.user) {
+          // Upsert profile
+          try {
+            const u = setRes.data.user;
+            await supabase.from('profiles').upsert({
+              id: u.id,
+              email: u.email,
+              full_name: u.user_metadata?.full_name || u.email?.split('@')[0] || 'Founder',
+              avatar_url: u.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+            });
+          } catch {}
+          return setRes.data;
+        }
+      }
+    }
+
+    throw new Error('Could not authenticate Google session tokens.');
   },
 
   /**
@@ -178,24 +161,14 @@ export const authService = {
   },
 
   /**
-   * Returns current active session.
+   * Sends password reset email.
    */
-  async getSession() {
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (!error && data?.session) return data.session;
-    } catch {}
-    return null;
-  },
-
-  /**
-   * Returns current authenticated user.
-   */
-  async getCurrentUser() {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error && data?.user) return data.user;
-    } catch {}
-    return null;
+  async resetPassword(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: 'soloceo://auth/reset-password',
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
   },
 };
