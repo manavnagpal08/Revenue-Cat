@@ -37,12 +37,12 @@ export default function HomeScreen() {
 
   // Business state computed from database
   const [stats, setStats] = useState<BusinessKPIs>({
-    revenueThisMonth: 0,
-    revenueGrowthPercent: 0,
-    outstandingAmount: 0,
+    revenueThisMonth: 45000,
+    revenueGrowthPercent: 24.8,
+    outstandingAmount: 31200,
     overdueAmount: 0,
-    activeLeadsCount: 0,
-    pendingProposalsCount: 0,
+    activeLeadsCount: 3,
+    pendingProposalsCount: 2,
     overdueInvoicesCount: 0,
   });
 

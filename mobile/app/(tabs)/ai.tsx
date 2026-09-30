@@ -32,6 +32,7 @@ import {
 import { Colors, Shadows } from '../../src/constants/theme';
 import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
+import { MarkdownText } from '../../src/components/MarkdownText';
 import { aiService } from '../../src/services/aiService';
 import { useAuthStore } from '../../src/store/authStore';
 import { AIMessage, AIAgentActionCard } from '../../src/types';
@@ -283,9 +284,7 @@ export default function AICommandCenterScreen() {
                   variant={isUser ? 'subtle' : 'elevated'}
                   style={[styles.messageCard, isUser ? styles.userCard : styles.aiCard]}
                 >
-                  <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-                    {m.content}
-                  </Text>
+                  <MarkdownText content={m.content} isUser={isUser} />
 
                   {/* Render Action Cards */}
                   {m.action_cards && m.action_cards.length > 0 && (

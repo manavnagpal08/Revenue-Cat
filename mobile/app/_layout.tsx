@@ -8,10 +8,27 @@ import { Colors, Shadows } from '../src/constants/theme';
 import { Sparkles } from 'lucide-react-native';
 import { AnimatedSplashScreen } from '../src/components/AnimatedSplashScreen';
 
+import {
+  useFonts,
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
+
 export default function RootLayout() {
   const { isInitialized, session, currentBusiness, businesses, initialize } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
+
+  const [fontsLoaded] = useFonts({
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+  });
 
   useEffect(() => {
     initialize();
@@ -41,7 +58,7 @@ export default function RootLayout() {
     }
   }, [isInitialized, session, currentBusiness, businesses, segments]);
 
-  if (!isInitialized) {
+  if (!isInitialized || !fontsLoaded) {
     return (
       <SafeAreaProvider>
         <StatusBar style="dark" />

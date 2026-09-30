@@ -93,10 +93,18 @@ export const Gradients = {
   aiGlow: ['#ECFDF5', '#EEF2FF', '#FFFFFF'] as const,
 };
 
+export const Fonts = {
+  regular: 'Manrope_400Regular',
+  medium: 'Manrope_500Medium',
+  semiBold: 'Manrope_600SemiBold',
+  bold: 'Manrope_700Bold',
+  extraBold: 'Manrope_800ExtraBold',
+};
+
 export const Typography = {
-  fontFamily: Platform.select({
-    ios: 'System',
-    android: 'sans-serif',
-    default: 'sans-serif',
-  }),
+  fontFamily: 'Manrope_400Regular',
+  fontFamilyMedium: 'Manrope_500Medium',
+  fontFamilySemiBold: 'Manrope_600SemiBold',
+  fontFamilyBold: 'Manrope_700Bold',
+  fontFamilyExtraBold: 'Manrope_800ExtraBold',
 };
