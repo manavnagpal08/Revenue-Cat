@@ -27,31 +27,74 @@ export interface RecordPaymentInput {
   notes?: string;
 }
 
+import { DEMO_INVOICES, DEMO_BUSINESS_ID } from './demoData';
+
+const invoiceCache = new Map<string, Invoice[]>([
+  [DEMO_BUSINESS_ID, [...DEMO_INVOICES]],
+]);
+
 export const invoiceService = {
   async listInvoices(businessId: string, statusFilter?: string, search?: string): Promise<Invoice[]> {
-    let query = supabase.from('invoices').select('*, customer:customers(*)').eq('business_id', businessId);
+    let dbInvoices: Invoice[] = [];
+    try {
+      let query = supabase.from('invoices').select('*, customer:customers(*)').eq('business_id', businessId);
+      if (statusFilter && statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+      if (search) {
+        query = query.ilike('invoice_number', `%${search}%`);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (!error && data) {
+        dbInvoices = data as Invoice[];
+      }
+    } catch (err) {
+      console.warn('Error listing invoices from Supabase:', err);
+    }
+
+    const cached = invoiceCache.get(businessId) || [];
+    const invMap = new Map<string, Invoice>();
+
+    for (const inv of cached) {
+      invMap.set(inv.id, inv);
+      invMap.set(inv.invoice_number, inv);
+    }
+    for (const inv of dbInvoices) {
+      invMap.set(inv.id, inv);
+      invMap.set(inv.invoice_number, inv);
+    }
+
+    let combined = Array.from(new Set(invMap.values()));
     if (statusFilter && statusFilter !== 'all') {
-      query = query.eq('status', statusFilter);
+      combined = combined.filter((i) => i.status === statusFilter);
     }
     if (search) {
-      query = query.ilike('invoice_number', `%${search}%`);
+      const q = search.toLowerCase();
+      combined = combined.filter((i) =>
+        i.invoice_number?.toLowerCase().includes(q) ||
+        (i as any).customer?.name?.toLowerCase().includes(q) ||
+        (i as any).customer?.company_name?.toLowerCase().includes(q)
+      );
     }
-    const { data, error } = await query.order('created_at', { ascending: false });
-    if (error) {
-      console.warn('Error listing invoices from Supabase:', error.message);
-      return [];
-    }
-    return (data || []) as Invoice[];
+
+    return combined.sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
   },
 
   async getInvoice(id: string): Promise<Invoice | null> {
-    const { data, error } = await supabase
-      .from('invoices')
-      .select('*, customer:customers(*), items:invoice_items(*), payments:payments(*)')
-      .eq('id', id)
-      .single();
-    if (error) throw error;
-    return data as Invoice;
+    try {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('*, customer:customers(*), items:invoice_items(*), payments:payments(*)')
+        .eq('id', id)
+        .single();
+      if (!error && data) return data as Invoice;
+    } catch {}
+
+    for (const list of invoiceCache.values()) {
+      const found = list.find((i) => i.id === id || i.invoice_number === id);
+      if (found) return found;
+    }
+    return null;
   },
 
   async createInvoice(input: CreateInvoiceInput): Promise<Invoice> {

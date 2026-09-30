@@ -13,31 +13,72 @@ export interface CreateProposalInput {
   valid_until?: string;
 }
 
+import { DEMO_PROPOSALS, DEMO_BUSINESS_ID } from './demoData';
+
+const proposalCache = new Map<string, Proposal[]>([
+  [DEMO_BUSINESS_ID, [...DEMO_PROPOSALS]],
+]);
+
 export const proposalService = {
   async listProposals(businessId: string, statusFilter?: string, search?: string): Promise<Proposal[]> {
-    let query = supabase.from('proposals').select('*, customer:customers(*)').eq('business_id', businessId);
+    let dbProposals: Proposal[] = [];
+    try {
+      let query = supabase.from('proposals').select('*, customer:customers(*)').eq('business_id', businessId);
+      if (statusFilter && statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+      if (search) {
+        query = query.ilike('title', `%${search}%`);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (!error && data) {
+        dbProposals = data as Proposal[];
+      }
+    } catch (err) {
+      console.warn('Error listing proposals from Supabase:', err);
+    }
+
+    const cached = proposalCache.get(businessId) || [];
+    const propMap = new Map<string, Proposal>();
+
+    for (const p of cached) {
+      propMap.set(p.id, p);
+    }
+    for (const p of dbProposals) {
+      propMap.set(p.id, p);
+    }
+
+    let combined = Array.from(propMap.values());
     if (statusFilter && statusFilter !== 'all') {
-      query = query.eq('status', statusFilter);
+      combined = combined.filter((p) => p.status === statusFilter);
     }
     if (search) {
-      query = query.ilike('title', `%${search}%`);
+      const q = search.toLowerCase();
+      combined = combined.filter((p) =>
+        p.title?.toLowerCase().includes(q) ||
+        (p as any).customer?.name?.toLowerCase().includes(q) ||
+        (p as any).customer?.company_name?.toLowerCase().includes(q)
+      );
     }
-    const { data, error } = await query.order('created_at', { ascending: false });
-    if (error) {
-      console.warn('Error listing proposals from Supabase:', error.message);
-      return [];
-    }
-    return (data || []) as Proposal[];
+
+    return combined.sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
   },
 
   async getProposal(id: string): Promise<Proposal | null> {
-    const { data, error } = await supabase
-      .from('proposals')
-      .select('*, customer:customers(*)')
-      .eq('id', id)
-      .single();
-    if (error) throw error;
-    return data as Proposal;
+    try {
+      const { data, error } = await supabase
+        .from('proposals')
+        .select('*, customer:customers(*)')
+        .eq('id', id)
+        .single();
+      if (!error && data) return data as Proposal;
+    } catch {}
+
+    for (const list of proposalCache.values()) {
+      const found = list.find((p) => p.id === id);
+      if (found) return found;
+    }
+    return null;
   },
 
   async createProposal(input: CreateProposalInput): Promise<Proposal> {

@@ -14,8 +14,12 @@ export interface CreateCustomerInput {
   total_revenue?: number;
 }
 
+import { DEMO_CUSTOMERS, DEMO_BUSINESS_ID } from './demoData';
+
 // In-memory cache for instant CRM sync
-const customerCache = new Map<string, Customer[]>();
+const customerCache = new Map<string, Customer[]>([
+  [DEMO_BUSINESS_ID, [...DEMO_CUSTOMERS]],
+]);
 
 export const customerService = {
   async listCustomers(businessId: string, search?: string, status?: string): Promise<Customer[]> {

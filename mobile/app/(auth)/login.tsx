@@ -127,8 +127,8 @@ export default function LoginScreen() {
     setEmail('founder.demo@soloceo.app');
     setPassword('Password123!');
     setLoading(true);
-    const userId = 'usr-demo-' + Date.now();
-    const bizId = 'biz-demo-' + Date.now();
+    const userId = 'usr-demo-alex-rivera';
+    const bizId = '00000000-0000-0000-0000-000000000002';
 
     useAuthStore.setState({
       session: { user: { id: userId, email: 'founder.demo@soloceo.app' } } as any,

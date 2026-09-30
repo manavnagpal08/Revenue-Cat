@@ -29,8 +29,12 @@ export interface AddActivityInput {
   description?: string;
 }
 
+import { DEMO_LEADS, DEMO_BUSINESS_ID } from './demoData';
+
 // In-memory cache for instant UI rendering and offline/simulator resilience
-const leadCache = new Map<string, Lead[]>();
+const leadCache = new Map<string, Lead[]>([
+  [DEMO_BUSINESS_ID, [...DEMO_LEADS]],
+]);
 
 export const leadService = {
   async listLeads(businessId: string, stage?: string, priority?: string, search?: string): Promise<Lead[]> {
