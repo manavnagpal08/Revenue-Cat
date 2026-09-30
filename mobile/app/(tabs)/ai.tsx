@@ -34,6 +34,7 @@ import { GlassCard } from '../../src/components/GlassCard';
 import { GlassButton } from '../../src/components/GlassButton';
 import { MarkdownText } from '../../src/components/MarkdownText';
 import { RevenueCatAdBanner } from '../../src/components/RevenueCatAdBanner';
+import { RewardedAdModal } from '../../src/components/RewardedAdModal';
 import { aiService } from '../../src/services/aiService';
 import { useAuthStore } from '../../src/store/authStore';
 import { AIMessage, AIAgentActionCard } from '../../src/types';
@@ -46,6 +47,8 @@ export default function AICommandCenterScreen() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string>('conv-' + Date.now());
+  const [credits, setCredits] = useState<number>(232);
+  const [rewardModalVisible, setRewardModalVisible] = useState(false);
 
   // Confirmation modal state for write actions
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
@@ -233,7 +236,7 @@ export default function AICommandCenterScreen() {
             activeOpacity={0.8}
           >
             <Sparkles size={12} color="#D97706" />
-            <Text style={styles.creditsText}>232 / 250 Credits</Text>
+            <Text style={styles.creditsText}>{credits} / 250 Credits</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.clearBtn} onPress={clearChat}>
@@ -252,12 +255,12 @@ export default function AICommandCenterScreen() {
           contentContainerStyle={styles.scrollContent}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
-          {/* RevenueCat Sponsored Power-Up Ad */}
+          {/* RevenueCat Sponsored Rewarded Ad */}
           <RevenueCatAdBanner
             variant="rewarded"
             style={{ marginHorizontal: 16, marginTop: 4, marginBottom: 12 }}
             onClaimReward={() => {
-              Alert.alert('Power-Up Claimed!', 'You have received +5 bonus AI credits sponsored by RevenueCat.');
+              setRewardModalVisible(true);
             }}
           />
 
@@ -407,6 +410,16 @@ export default function AICommandCenterScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* RevenueCat Sponsored Rewarded Ad Modal */}
+      <RewardedAdModal
+        visible={rewardModalVisible}
+        businessId={currentBusiness?.id || 'default'}
+        onClose={() => setRewardModalVisible(false)}
+        onRewardClaimed={(newTotal) => {
+          setCredits(newTotal);
+        }}
+      />
     </SafeAreaView>
   );
 }

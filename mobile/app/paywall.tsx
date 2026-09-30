@@ -111,8 +111,12 @@ export default function PaywallScreen() {
               <Crown size={32} color="#F59E0B" />
             </View>
             <Text style={styles.heroTitle}>Upgrade SoloCEO</Text>
+            <View style={styles.rcBadge}>
+              <ShieldCheck size={12} color="#059669" />
+              <Text style={styles.rcBadgeText}>POWERED BY REVENUECAT • 100% AD-FREE</Text>
+            </View>
             <Text style={styles.heroSub}>
-              Unlock high-throughput AI credits, unlimited automated workflows, WhatsApp integrations, and dedicated agent reasoning.
+              Unlock high-throughput AI credits, unlimited automated workflows, WhatsApp integrations, and dedicated agent reasoning with zero ads.
             </Text>
           </View>
 
@@ -281,13 +285,31 @@ const styles = StyleSheet.create({
     color: Colors.text,
     letterSpacing: -0.5,
   },
+  rcBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  rcBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    fontFamily: 'Manrope_800ExtraBold',
+    color: '#059669',
+    letterSpacing: 0.5,
+  },
   heroSub: {
     fontSize: 13,
     color: Colors.textSecondary,
     fontFamily: 'Manrope_400Regular',
     textAlign: 'center',
     lineHeight: 18,
-    marginTop: 6,
+    marginTop: 4,
     paddingHorizontal: 10,
   },
   plansContainer: {
